@@ -66,5 +66,13 @@ Release を PAT で作るのが要点です。`GITHUB_TOKEN` による操作は�
 ### 必要な設定
 
 - **Settings → Pages → Source: GitHub Actions**
+- **Settings → Environments → `github-pages` → Deployment branches and tags**
+  にタグルール `v*` を追加する。この environment は既定で「デフォルトブランチからの
+  デプロイのみ」に制限されており、Release イベントのワークフローはタグ (`v0.1.0` 等) を
+  ref として動くため、追加しないとジョブがステップ実行前に拒否される（ログの残らない
+  数秒での失敗になる）。
 - ソースリポジトリ側の Secrets に `DIST_REPO_TOKEN`（このリポジトリへの
   Contents: Read and write 権限を持つ fine-grained PAT）
+
+リスティングは Actions から «Publish listing» を `workflow_dispatch` で手動実行しても
+組み立て直せる。Release を作り直す必要はない。
