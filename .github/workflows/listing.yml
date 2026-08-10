@@ -5,7 +5,8 @@ name: Publish listing
 # このイベントが発火する（GITHUB_TOKEN 由来の操作では発火しない）。
 on:
   release:
-    types: [published, edited, deleted, released]
+    # released は published と同時に発火するため入れない (Pages デプロイが二重起動する)
+    types: [published, edited, deleted]
   workflow_dispatch:
 
 permissions:
