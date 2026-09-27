@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mashiro Station Auto Seat (By Display Name) — Mashiro Small Theater</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fg: #1f1f1f; --bg: #ffffff; --muted: #666666; --line: rgba(127,127,127,.3);
+    --code-bg: rgba(127,127,127,.14); --accent: #E85900;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e6e6; --bg: #161616; --muted: #999999; }
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.75; max-width: 52rem; margin: 0 auto; padding: 1.2rem 16px 4rem;
+    color: var(--fg); background: var(--bg); overflow-wrap: anywhere;
+  }
+  a { color: var(--accent); }
+  nav { font-size: .9rem; color: var(--muted); margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; line-height: 1.4; }
+  h2 { margin-top: 2.4rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+  h3 { margin-top: 1.8rem; }
+  code { background: var(--code-bg); padding: .1rem .35rem; border-radius: .25rem; font-size: .9em; }
+  pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: .4rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; display: block; overflow-x: auto; margin: 1rem 0; }
+  th, td { text-align: left; padding: .45rem .7rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--code-bg); }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid var(--line); color: var(--muted); }
+  img { max-width: 100%; }
+  footer { margin-top: 3rem; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<nav><a href="../../">マニュアル</a> / <a href="../">Mashiro Theater Utils</a></nav>
+<main>
+<h1 id="mashiro-station-auto-seat-by-display-name">Mashiro Station Auto Seat (By Display Name)</h1>
+<p>DisplayName が一致するプレイヤーを、指定の Station（椅子）へ自動的に座らせるギミックです。「この役の人は必ずこの席」という割り当てに使います。</p>
+<h2 id="主な機能仕様">主な機能・仕様</h2>
+<ul>
+<li>Arm（起動）中、<code>Target Display Name</code> に一致する<strong>ローカルプレイヤー</strong>を対象 Station へ着席させます</li>
+<li>Disarm（解除）時、このギミックが座らせたプレイヤーは降車します</li>
+<li>起動・解除は <strong>Switch プロキシの GameObject を Timeline の Activation Track 等でトグル</strong>して行うのが標準の使い方です</li>
+</ul>
+<p><strong>Station 本体の GameObject を直接 SetActive しないでください。</strong> <code>VRC_Station</code> 付き GameObject のトグルは、稀に他プレイヤーの描画・音声・名札が壊れる症状が報告されています。本体は常時 Active のまま、Switch プロキシ側をトグルする構成にしてあります。</p>
+<h2 id="セットアップ">セットアップ</h2>
+<ol>
+<li>Station 側に <code>StationAutoSeatByDisplayName</code> を付け、<code>Station</code>（<code>VRCStation</code> コンポーネント）と <code>Target Display Name</code> を設定します</li>
+<li>別の GameObject に <code>StationAutoSeatByDisplayNameSwitch</code> を付け、対象の本体を割り当てます</li>
+<li>Timeline の Activation Track などで <strong>Switch 側の GameObject</strong> をトグルします（Active = 着席試行、Inactive = 降車）</li>
+</ol>
+<h3 id="stationautoseatbydisplayname-のフィールド">StationAutoSeatByDisplayName のフィールド</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Station</code></td>
+<td>–</td>
+<td>着席先の <code>VRCStation</code> コンポーネント</td>
+</tr>
+<tr>
+<td><code>Target Display Name</code></td>
+<td>空</td>
+<td>着席対象の displayName（完全一致・大文字小文字を区別）</td>
+</tr>
+<tr>
+<td><code>Initial Delay</code></td>
+<td><code>0</code> 秒</td>
+<td>Arm 直後の判定遅延。0 で即時判定</td>
+</tr>
+<tr>
+<td><code>Retry Count</code></td>
+<td><code>4</code></td>
+<td>再試行回数。0 なら 1 回のみ</td>
+</tr>
+<tr>
+<td><code>Retry Interval</code></td>
+<td><code>0.25</code> 秒</td>
+<td>再試行の間隔</td>
+</tr>
+</tbody>
+</table>
+<p>再試行は <code>Station</code> などの参照が未準備だった場合にのみ行われます。参照が揃っていて displayName が一致しなかったときは、再試行せずにその Arm 期間の判定を終えます（displayName は途中で変わらないため）。</p>
+<h2 id="api-リファレンス">API リファレンス</h2>
+<h3 id="stationautoseatbydisplayname">StationAutoSeatByDisplayName</h3>
+<table>
+<thead>
+<tr>
+<th>メソッド</th>
+<th>用途</th>
+<th>呼び出し種別</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ArmGimmick()</code> / <code>DisarmGimmick()</code></td>
+<td>起動 / 解除</td>
+<td>Switch が呼ぶ内部連携用（通常は手配線不要）</td>
+</tr>
+<tr>
+<td><code>TrySeatOnce()</code></td>
+<td>着席を 1 回試行</td>
+<td>内部連携用</td>
+</tr>
+</tbody>
+</table>
+<h3 id="stationautoseatbydisplaynameswitch">StationAutoSeatByDisplayNameSwitch</h3>
+<p>public 関数はありません。GameObject の Active/Inactive で本体を制御します（配線不要）。</p>
+<h2 id="ライセンス">ライセンス</h2>
+<p>このフォルダの内容は MIT License で提供します（リポジトリルートの <code>LICENSE.md</code> を参照）。</p>
+<hr />
+<p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
+<ul>
+<li>メール: <a href="mailto:contact@mashirotheater.com">contact@mashirotheater.com</a></li>
+<li>X: <a href="https://x.com/hakushiza">https://x.com/hakushiza</a></li>
+<li>Discord: <a href="https://discord.com/invite/yU2Es38sVX">https://discord.com/invite/yU2Es38sVX</a></li>
+</ul>
+
+</main>
+<footer>main@2698a7a 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
+</body>
+</html>

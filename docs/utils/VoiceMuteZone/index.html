@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mashiro Voice Mute Zone — Mashiro Small Theater</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fg: #1f1f1f; --bg: #ffffff; --muted: #666666; --line: rgba(127,127,127,.3);
+    --code-bg: rgba(127,127,127,.14); --accent: #E85900;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e6e6; --bg: #161616; --muted: #999999; }
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.75; max-width: 52rem; margin: 0 auto; padding: 1.2rem 16px 4rem;
+    color: var(--fg); background: var(--bg); overflow-wrap: anywhere;
+  }
+  a { color: var(--accent); }
+  nav { font-size: .9rem; color: var(--muted); margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; line-height: 1.4; }
+  h2 { margin-top: 2.4rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+  h3 { margin-top: 1.8rem; }
+  code { background: var(--code-bg); padding: .1rem .35rem; border-radius: .25rem; font-size: .9em; }
+  pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: .4rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; display: block; overflow-x: auto; margin: 1rem 0; }
+  th, td { text-align: left; padding: .45rem .7rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--code-bg); }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid var(--line); color: var(--muted); }
+  img { max-width: 100%; }
+  footer { margin-top: 3rem; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<nav><a href="../../">マニュアル</a> / <a href="../">Mashiro Theater Utils</a></nav>
+<main>
+<h1 id="mashiro-voice-mute-zone">Mashiro Voice Mute Zone</h1>
+<p>指定ゾーン内にいるプレイヤーの声を、他のプレイヤーへ聞こえなくするギミックです。舞台袖・楽屋などの「声を漏らしたくないエリア」に使います。</p>
+<h2 id="主な機能仕様">主な機能・仕様</h2>
+<ul>
+<li>ゾーン内のプレイヤーは、ゾーン外のプレイヤーから見て <code>VoiceDistanceFar = 0</code> に設定され、声が聞こえなくなります。ゾーンを出ると既定値へ戻ります</li>
+<li>ゾーン内どうしのプレイヤーは、互いに既定値のまま通常どおり会話できます</li>
+<li><strong>除外ゾーン</strong>に入っているプレイヤーには、<code>VoiceDistanceFar</code> の既定値への復帰を行いません（他の音声系ギミックが設定した値を尊重するため）。ミュート自体の免除ではなく、ミュートゾーン内にいれば除外ゾーンにいてもミュートされます</li>
+<li>判定はプレイヤーの<strong>頭の位置</strong>で行います</li>
+<li>一定間隔（既定 1.5 秒）の位置チェックで判定します</li>
+<li>状態は Manual 同期で、Late Joiner にも反映されます。同期リストで扱えるゾーン内プレイヤーは最大 80 人です</li>
+</ul>
+<p><strong>ゾーンのコライダーは回転させないでください。</strong> 判定にはコライダーのワールド軸平行バウンディングボックス（AABB）を使うため、回転させると見た目の形と判定範囲がずれます。</p>
+<h2 id="セットアップ">セットアップ</h2>
+<p><code>MashiroVoiceMuteZone</code> を任意の GameObject に付け、ゾーンのコライダーを割り当てるだけです。</p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Zone Colliders</code></td>
+<td>–</td>
+<td>ミュートゾーンのコライダー群（<strong>BoxCollider のみ</strong>・IsTrigger 必須・複数可）</td>
+</tr>
+<tr>
+<td><code>Exclusion Zone Colliders</code></td>
+<td>–</td>
+<td>除外エリアのコライダー群（任意・<code>Collider</code> なら種類は問わない）</td>
+</tr>
+<tr>
+<td><code>Update Interval</code></td>
+<td><code>1.5</code> 秒</td>
+<td>位置チェック間隔</td>
+</tr>
+<tr>
+<td><code>Debug Text</code></td>
+<td>–</td>
+<td>エリア内プレイヤー名のデバッグ表示先（任意）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="api-リファレンス">API リファレンス</h2>
+<h3 id="mashirovoicemutezone">MashiroVoiceMuteZone</h3>
+<p>public 関数は VRChat のイベントオーバーライドのみです。<strong>配線は不要</strong>で、Inspector の設定だけで動作します。</p>
+<h2 id="ライセンス">ライセンス</h2>
+<p>このフォルダの内容は MIT License で提供します（リポジトリルートの <code>LICENSE.md</code> を参照）。</p>
+<hr />
+<p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
+<ul>
+<li>メール: <a href="mailto:contact@mashirotheater.com">contact@mashirotheater.com</a></li>
+<li>X: <a href="https://x.com/hakushiza">https://x.com/hakushiza</a></li>
+<li>Discord: <a href="https://discord.com/invite/yU2Es38sVX">https://discord.com/invite/yU2Es38sVX</a></li>
+</ul>
+
+</main>
+<footer>main@2698a7a 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
+</body>
+</html>

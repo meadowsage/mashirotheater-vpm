@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mashiro Button Lock System — Mashiro Small Theater</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fg: #1f1f1f; --bg: #ffffff; --muted: #666666; --line: rgba(127,127,127,.3);
+    --code-bg: rgba(127,127,127,.14); --accent: #E85900;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e6e6; --bg: #161616; --muted: #999999; }
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.75; max-width: 52rem; margin: 0 auto; padding: 1.2rem 16px 4rem;
+    color: var(--fg); background: var(--bg); overflow-wrap: anywhere;
+  }
+  a { color: var(--accent); }
+  nav { font-size: .9rem; color: var(--muted); margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; line-height: 1.4; }
+  h2 { margin-top: 2.4rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+  h3 { margin-top: 1.8rem; }
+  code { background: var(--code-bg); padding: .1rem .35rem; border-radius: .25rem; font-size: .9em; }
+  pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: .4rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; display: block; overflow-x: auto; margin: 1rem 0; }
+  th, td { text-align: left; padding: .45rem .7rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--code-bg); }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid var(--line); color: var(--muted); }
+  img { max-width: 100%; }
+  footer { margin-top: 3rem; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<nav><a href="../../">マニュアル</a> / <a href="../">Mashiro Theater Utils</a></nav>
+<main>
+<h1 id="mashiro-button-lock-system">Mashiro Button Lock System</h1>
+<p>UI ボタン群を一括でロック（押せない状態に）するギミックです。公演の操作卓などで、本番中に触ってほしくないボタンをまとめて保護する用途を想定しています。</p>
+<h2 id="主な機能仕様">主な機能・仕様</h2>
+<ul>
+<li>ロック ON 中は対象ボタンの <code>interactable</code> が false になり押せません</li>
+<li>ロック切替用トグルボタンは、状態に応じて色が変わります（ON: 暗いオレンジ / OFF: 黒）。全ステート同色にしてあるため、フォーカスが外れても色が戻りません</li>
+<li><code>Use Global Lock</code> を ON にするとロック状態が全プレイヤーで同期されます（OFF なら各自ローカル）</li>
+</ul>
+<h2 id="セットアップ">セットアップ</h2>
+<ol>
+<li>空の GameObject などに <code>MashiroButtonLockSystem</code> を追加します</li>
+<li><code>Target Buttons</code> にロック対象のボタン群、<code>Lock Toggle Button</code> に切替ボタンを割り当てます</li>
+<li>切替ボタンの <code>OnClick</code> から <code>ToggleLock</code> を呼ぶよう配線します</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Use Global Lock</code></td>
+<td><code>false</code></td>
+<td>ロック状態を全員で共有する</td>
+</tr>
+<tr>
+<td><code>Is Locked</code></td>
+<td><code>true</code></td>
+<td>シーン開始時のロック状態</td>
+</tr>
+<tr>
+<td><code>Target Buttons</code></td>
+<td>–</td>
+<td>ロック対象の UI ボタン群</td>
+</tr>
+<tr>
+<td><code>Lock Toggle Button</code></td>
+<td>–</td>
+<td>ロック状態を切り替えるボタン</td>
+</tr>
+<tr>
+<td><code>Locked Color</code> / <code>Unlocked Color</code></td>
+<td>暗いオレンジ / 黒</td>
+<td>トグルボタンの状態色</td>
+</tr>
+</tbody>
+</table>
+<h2 id="api-リファレンス">API リファレンス</h2>
+<h3 id="mashirobuttonlocksystem">MashiroButtonLockSystem</h3>
+<table>
+<thead>
+<tr>
+<th>メソッド</th>
+<th>用途</th>
+<th>呼び出し種別</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ToggleLock()</code></td>
+<td>ロック状態を切り替える</td>
+<td><code>Button.OnClick</code> から配線</td>
+</tr>
+<tr>
+<td><code>OnDeserialization()</code></td>
+<td>同期受信処理</td>
+<td>内部専用（配線不要）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ライセンス">ライセンス</h2>
+<p>このフォルダの内容は MIT License で提供します（リポジトリルートの <code>LICENSE.md</code> を参照）。</p>
+<hr />
+<p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
+<ul>
+<li>メール: <a href="mailto:contact@mashirotheater.com">contact@mashirotheater.com</a></li>
+<li>X: <a href="https://x.com/hakushiza">https://x.com/hakushiza</a></li>
+<li>Discord: <a href="https://discord.com/invite/yU2Es38sVX">https://discord.com/invite/yU2Es38sVX</a></li>
+</ul>
+
+</main>
+<footer>main@2698a7a 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
+</body>
+</html>

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mashiro Theater Utils — Mashiro Small Theater</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fg: #1f1f1f; --bg: #ffffff; --muted: #666666; --line: rgba(127,127,127,.3);
+    --code-bg: rgba(127,127,127,.14); --accent: #E85900;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e6e6; --bg: #161616; --muted: #999999; }
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.75; max-width: 52rem; margin: 0 auto; padding: 1.2rem 16px 4rem;
+    color: var(--fg); background: var(--bg); overflow-wrap: anywhere;
+  }
+  a { color: var(--accent); }
+  nav { font-size: .9rem; color: var(--muted); margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; line-height: 1.4; }
+  h2 { margin-top: 2.4rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+  h3 { margin-top: 1.8rem; }
+  code { background: var(--code-bg); padding: .1rem .35rem; border-radius: .25rem; font-size: .9em; }
+  pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: .4rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; display: block; overflow-x: auto; margin: 1rem 0; }
+  th, td { text-align: left; padding: .45rem .7rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--code-bg); }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid var(--line); color: var(--muted); }
+  img { max-width: 100%; }
+  footer { margin-top: 3rem; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<nav><a href="../">マニュアル</a> / <a href="./">Mashiro Theater Utils</a></nav>
+<main>
+<h1 id="mashiro-theater-utils">Mashiro Theater Utils</h1>
+<p>ましろ小劇場のワールド用小規模ギミック集です。このフォルダのツールは <code>MashiroTheater-Utils</code> パッケージとして配布されます。各ツールの詳細は、それぞれのフォルダの <code>README.md</code> を参照してください。</p>
+<table>
+<thead>
+<tr>
+<th>ツール</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="AudioZoneController/">AudioZoneController</a></td>
+<td>エリア単位でボイスの聞こえ方を制御（防音・拡声ゾーン）</td>
+</tr>
+<tr>
+<td><a href="AutoDoor/">AutoDoor</a></td>
+<td>接近で開閉する自動ドア（Timeline 駆動・途中反転対応）</td>
+</tr>
+<tr>
+<td><a href="ButtonLockSystem/">ButtonLockSystem</a></td>
+<td>UI ボタン群の一括ロック（誤操作防止）</td>
+</tr>
+<tr>
+<td><a href="ChairHeightAdjuster/">ChairHeightAdjuster</a></td>
+<td>VRCStation の椅子高さを段階調整</td>
+</tr>
+<tr>
+<td><a href="CustomStation/">CustomStation</a></td>
+<td>観客席向けカスタムステーション（メニュー・字幕連携・降車ゲージ）</td>
+</tr>
+<tr>
+<td><a href="LocalAreaActivator/">LocalAreaActivator</a></td>
+<td>エリア内にいる間だけオブジェクトを有効化（ローカル）</td>
+</tr>
+<tr>
+<td><a href="OnOffSwitches/">OnOffSwitches</a></td>
+<td>GameObject の ON/OFF スイッチ群</td>
+</tr>
+<tr>
+<td><a href="PageViewer/">PageViewer</a></td>
+<td>ページ送り式画像ビューア（同期/ローカル切替・ズーム）</td>
+</tr>
+<tr>
+<td><a href="PickupHoldSfx/">PickupHoldSfx</a></td>
+<td>Pickup の使用中・保持中に効果音を再生（全員同期）</td>
+</tr>
+<tr>
+<td><a href="PickupHorizontalReset/">PickupHorizontalReset</a></td>
+<td>Pickup をドロップした瞬間に水平化</td>
+</tr>
+<tr>
+<td><a href="PickupResetButton/">PickupResetButton</a></td>
+<td>Pickup 群をボタン 1 つで初期位置へ一括リセット</td>
+</tr>
+<tr>
+<td><a href="PickupSpaceFixer/">PickupSpaceFixer</a></td>
+<td>小道具を持ったままダブルトリガーで空間固定</td>
+</tr>
+<tr>
+<td><a href="PlayerFollower/">PlayerFollower</a></td>
+<td>オブジェクトをプレイヤーに追従（UI 選択式 / 名前指定）</td>
+</tr>
+<tr>
+<td><a href="SpeedChangeZone/">SpeedChangeZone</a></td>
+<td>エリア内で移動速度を倍率変更</td>
+</tr>
+<tr>
+<td><a href="StationAutoSeatByDisplayName/">StationAutoSeatByDisplayName</a></td>
+<td>DisplayName 一致のプレイヤーを自動着席</td>
+</tr>
+<tr>
+<td><a href="StationAutoSeatOnActive/">StationAutoSeatOnActive</a></td>
+<td>起動時にエリア内のプレイヤーを自動着席</td>
+</tr>
+<tr>
+<td><a href="SyncedTimelineToggle/">SyncedTimelineToggle</a></td>
+<td>Timeline 再生のトグル制御（全員同期・排他グループ対応）</td>
+</tr>
+<tr>
+<td><a href="VoiceMuteZone/">VoiceMuteZone</a></td>
+<td>ゾーン内プレイヤーの声をミュート</td>
+</tr>
+</tbody>
+</table>
+<h2 id="依存">依存</h2>
+<p>各ツールは共有素材パッケージ <code>MashiroTheater-Common</code>（フォント・アイコン等）を参照します。VCC 経由なら自動で解決されます。unitypackage の場合は Common → Utils の順にインポートしてください。</p>
+<h2 id="ライセンス">ライセンス</h2>
+<p>MIT License（リポジトリルートの <code>LICENSE.md</code> を参照）。</p>
+<hr />
+<p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
+<ul>
+<li>メール: <a href="mailto:contact@mashirotheater.com">contact@mashirotheater.com</a></li>
+<li>X: <a href="https://x.com/hakushiza">https://x.com/hakushiza</a></li>
+<li>Discord: <a href="https://discord.com/invite/yU2Es38sVX">https://discord.com/invite/yU2Es38sVX</a></li>
+</ul>
+
+</main>
+<footer>main@2698a7a 時点の内容です。 · <a href="../../">Mashiro Small Theater VPM</a></footer>
+</body>
+</html>

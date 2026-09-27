@@ -1,0 +1,78 @@
+{
+  "name": "Mashiro Small Theater",
+  "id": "com.mashirotheater.vpm",
+  "url": "https://meadowsage.github.io/mashirotheater-vpm/index.json",
+  "author": "Mashiro Small Theater",
+  "packages": {
+    "com.mashirotheater.common": {
+      "versions": {
+        "0.1.0": {
+          "name": "com.mashirotheater.common",
+          "displayName": "Mashiro Theater Common",
+          "version": "0.1.0",
+          "unity": "2022.3",
+          "description": "他パッケージが共有するシェーダ・マテリアル・フォント・アイコン。単体では機能しません。",
+          "author": {
+            "name": "Mashiro Small Theater",
+            "url": "https://github.com/meadowsage/mashirotheater-vpm"
+          },
+          "license": "MIT",
+          "licensesUrl": "https://github.com/meadowsage/mashirotheater-vpm/blob/main/LICENSE.md",
+          "vpmDependencies": {
+            "com.vrchat.worlds": ">=3.7.0"
+          },
+          "legacyFolders": {
+            "Assets/MashiroSmallTheater/_Common": ""
+          },
+          "url": "https://github.com/meadowsage/mashirotheater-vpm/releases/download/v0.1.0/com.mashirotheater.common-0.1.0.zip",
+          "zipSHA256": "b8ed1c39f9ab0b1aac3708e830b09b4ced1b600dbcc0d77b02d3cfb6c312fb06"
+        }
+      }
+    },
+    "com.mashirotheater.utils": {
+      "versions": {
+        "0.1.0": {
+          "name": "com.mashirotheater.utils",
+          "displayName": "Mashiro Theater Utils",
+          "version": "0.1.0",
+          "unity": "2022.3",
+          "description": "AutoDoor などの小規模ギミック詰め合わせ。",
+          "author": {
+            "name": "Mashiro Small Theater",
+            "url": "https://github.com/meadowsage/mashirotheater-vpm"
+          },
+          "license": "MIT",
+          "licensesUrl": "https://github.com/meadowsage/mashirotheater-vpm/blob/main/LICENSE.md",
+          "vpmDependencies": {
+            "com.vrchat.worlds": ">=3.7.0",
+            "com.mashirotheater.common": ">=0.1.0"
+          },
+          "legacyFolders": {
+            "Assets/MashiroSmallTheater/_Utils": "",
+            "Assets/MashiroSmallTheater/AudioZoneController": "",
+            "Assets/MashiroSmallTheater/AutoDoor": "",
+            "Assets/MashiroSmallTheater/ButtonLockSystem": "",
+            "Assets/MashiroSmallTheater/ChairHeightAdjuster": "",
+            "Assets/MashiroSmallTheater/CustomStation": "",
+            "Assets/MashiroSmallTheater/LocalAreaActivator": "",
+            "Assets/MashiroSmallTheater/MultiStateController": "",
+            "Assets/MashiroSmallTheater/OnOffSwitches": "",
+            "Assets/MashiroSmallTheater/PageViewer": "",
+            "Assets/MashiroSmallTheater/PickupHoldSfx": "",
+            "Assets/MashiroSmallTheater/PickupHorizontalReset": "",
+            "Assets/MashiroSmallTheater/PickupResetButton": "",
+            "Assets/MashiroSmallTheater/PickupSpaceFixer": "",
+            "Assets/MashiroSmallTheater/PlayerFollower": "",
+            "Assets/MashiroSmallTheater/SpeedChangeZone": "",
+            "Assets/MashiroSmallTheater/StationAutoSeatByDisplayName": "",
+            "Assets/MashiroSmallTheater/StationAutoSeatOnActive": "",
+            "Assets/MashiroSmallTheater/SyncedTimelineToggle": "",
+            "Assets/MashiroSmallTheater/VoiceMuteZone": ""
+          },
+          "url": "https://github.com/meadowsage/mashirotheater-vpm/releases/download/v0.1.0/com.mashirotheater.utils-0.1.0.zip",
+          "zipSHA256": "c15257fcabe6ba9e7d44131c5496bbf885554aeca8a960fb57db4b53798bd5a8"
+        }
+      }
+    }
+  }
+}

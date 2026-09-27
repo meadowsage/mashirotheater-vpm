@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mashiro Pickup Hold SFX — Mashiro Small Theater</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fg: #1f1f1f; --bg: #ffffff; --muted: #666666; --line: rgba(127,127,127,.3);
+    --code-bg: rgba(127,127,127,.14); --accent: #E85900;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e6e6; --bg: #161616; --muted: #999999; }
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.75; max-width: 52rem; margin: 0 auto; padding: 1.2rem 16px 4rem;
+    color: var(--fg); background: var(--bg); overflow-wrap: anywhere;
+  }
+  a { color: var(--accent); }
+  nav { font-size: .9rem; color: var(--muted); margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; line-height: 1.4; }
+  h2 { margin-top: 2.4rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+  h3 { margin-top: 1.8rem; }
+  code { background: var(--code-bg); padding: .1rem .35rem; border-radius: .25rem; font-size: .9em; }
+  pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: .4rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; display: block; overflow-x: auto; margin: 1rem 0; }
+  th, td { text-align: left; padding: .45rem .7rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--code-bg); }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid var(--line); color: var(--muted); }
+  img { max-width: 100%; }
+  footer { margin-top: 3rem; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<nav><a href="../../">マニュアル</a> / <a href="../">Mashiro Theater Utils</a></nav>
+<main>
+<h1 id="mashiro-pickup-hold-sfx">Mashiro Pickup Hold SFX</h1>
+<p>Pickup（小道具）の使用中・保持中に効果音を鳴らすギミックです。再生状態を同期するため、<strong>全プレイヤーに聞こえます</strong>。</p>
+<h2 id="主な機能仕様">主な機能・仕様</h2>
+<ul>
+<li>既定では<strong>トリガー使用中（Use Down 〜 Use Up）のみ</strong>再生</li>
+<li><code>Play While Held Without Use</code> を ON にすると、<strong>持っている間ずっと</strong>再生</li>
+<li>再生・停止時に短い音量フェードをかけてクリックノイズを防止</li>
+<li>再生状態は <code>[UdonSynced]</code> で同期。持ち主の退出やオーナー移譲時も再生状態が破綻しないよう処理済み</li>
+</ul>
+<h2 id="セットアップ">セットアップ</h2>
+<ol>
+<li><code>VRC_Pickup</code> の付いたオブジェクトに <code>MashiroPickupHoldSfx</code> と <code>AudioSource</code> を追加します</li>
+<li><code>Audio Source</code> を Inspector で割り当て、その <code>AudioSource</code> に鳴らしたい AudioClip を設定します
+<ul>
+<li><code>AudioSource</code> の Play On Awake / Loop / 3D（Spatial Blend）は起動時に自動設定されるため、<strong>AudioClip の割り当てだけで動きます</strong></li>
+</ul>
+</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Audio Source</code></td>
+<td>–</td>
+<td>再生に使う AudioSource（必須。未設定だとコンポーネントが停止します）</td>
+</tr>
+<tr>
+<td><code>Pickup</code></td>
+<td>–</td>
+<td>対象の VRC_Pickup。<strong>未設定なら同じ GameObject の <code>VRC_Pickup</code> を自動取得</strong>します（見つからない場合はコンポーネントが停止します）</td>
+</tr>
+<tr>
+<td><code>Play While Held Without Use</code></td>
+<td><code>false</code></td>
+<td>ON: 保持中ずっと再生 / OFF: 使用中のみ</td>
+</tr>
+<tr>
+<td><code>Fade Seconds</code></td>
+<td><code>0.10</code></td>
+<td>再生・停止時の音量フェード時間</td>
+</tr>
+<tr>
+<td><code>Target Volume</code></td>
+<td><code>1</code></td>
+<td>再生時の音量</td>
+</tr>
+</tbody>
+</table>
+<h2 id="api-リファレンス">API リファレンス</h2>
+<h3 id="mashiropickupholdsfx">MashiroPickupHoldSfx</h3>
+<p>public 関数はすべて VRChat のイベントオーバーライド（<code>OnPickup</code> / <code>OnDrop</code> / <code>OnPickupUseDown</code> / <code>OnPickupUseUp</code> 等）です。<strong>UI からの配線は不要</strong>で、Inspector の割り当てだけで動作します。</p>
+<h2 id="ライセンス">ライセンス</h2>
+<p>このフォルダの内容は MIT License で提供します（リポジトリルートの <code>LICENSE.md</code> を参照）。</p>
+<hr />
+<p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
+<ul>
+<li>メール: <a href="mailto:contact@mashirotheater.com">contact@mashirotheater.com</a></li>
+<li>X: <a href="https://x.com/hakushiza">https://x.com/hakushiza</a></li>
+<li>Discord: <a href="https://discord.com/invite/yU2Es38sVX">https://discord.com/invite/yU2Es38sVX</a></li>
+</ul>
+
+</main>
+<footer>main@2698a7a 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
+</body>
+</html>

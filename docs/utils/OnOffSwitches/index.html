@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OnOffSwitches — Mashiro Small Theater</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fg: #1f1f1f; --bg: #ffffff; --muted: #666666; --line: rgba(127,127,127,.3);
+    --code-bg: rgba(127,127,127,.14); --accent: #E85900;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e6e6; --bg: #161616; --muted: #999999; }
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.75; max-width: 52rem; margin: 0 auto; padding: 1.2rem 16px 4rem;
+    color: var(--fg); background: var(--bg); overflow-wrap: anywhere;
+  }
+  a { color: var(--accent); }
+  nav { font-size: .9rem; color: var(--muted); margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; line-height: 1.4; }
+  h2 { margin-top: 2.4rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+  h3 { margin-top: 1.8rem; }
+  code { background: var(--code-bg); padding: .1rem .35rem; border-radius: .25rem; font-size: .9em; }
+  pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: .4rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; display: block; overflow-x: auto; margin: 1rem 0; }
+  th, td { text-align: left; padding: .45rem .7rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--code-bg); }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid var(--line); color: var(--muted); }
+  img { max-width: 100%; }
+  footer { margin-top: 3rem; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<nav><a href="../../">マニュアル</a> / <a href="../">Mashiro Theater Utils</a></nav>
+<main>
+<h1 id="onoffswitches">OnOffSwitches</h1>
+<p>任意の GameObject の ON/OFF をボタン操作で切り替えるためのスイッチ群です。
+用途に応じて以下を使い分けてください。</p>
+<table>
+<thead>
+<tr>
+<th>コンポーネント</th>
+<th>同期</th>
+<th>ボタン数</th>
+<th>主な用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MashiroGlobalOnOffSwitch</code></td>
+<td>全プレイヤーで同期</td>
+<td>1</td>
+<td>1 つのボタンで全員に同じ状態を見せたい対象</td>
+</tr>
+<tr>
+<td><code>MashiroLocalOnOffSwitch</code></td>
+<td>ローカルのみ</td>
+<td>1</td>
+<td>プレイヤーごとに ON/OFF を切り替えたい UI</td>
+</tr>
+<tr>
+<td><code>MashiroMultiGlobalOnOff</code> (+<code>MashiroMultiGlobalOnOffButton</code>)</td>
+<td>全プレイヤーで同期</td>
+<td>複数</td>
+<td>1 つの対象を複数ボタンから連動して制御したい場合</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>複数ボタンで 1 つの対象を制御したいとき</strong>は <code>MashiroGlobalOnOffSwitch</code> を複数並べてはいけません。
+各スイッチが独立した同期状態を持つため互いに競合し、特に後から Join したプレイヤーで
+表示が食い違います。この用途では後述の <code>MashiroMultiGlobalOnOff</code> を使ってください。</p>
+</blockquote>
+<h2 id="共通の使い方">共通の使い方</h2>
+<ol>
+<li>対象 GameObject に各スイッチコンポーネントを追加します。</li>
+<li>インスペクタで対象・初期状態・ボタン色を設定します。<strong>フィールド名はコンポーネントごとに異なります</strong>（下記「Inspector フィールド」を参照）。</li>
+<li>子に <code>TextMeshProUGUI</code> があると自動的にラベルとして扱われます。表示される文字列はコンポーネントごとに異なります（下記「ラベルの扱い」を参照）。</li>
+</ol>
+<h2 id="inspector-フィールド">Inspector フィールド</h2>
+<h3 id="mashiroglobalonoffswitch">MashiroGlobalOnOffSwitch</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Target</code></td>
+<td>–</td>
+<td>ON/OFF を切り替える GameObject</td>
+</tr>
+<tr>
+<td><code>On Color</code></td>
+<td><code>(0.69, 0.239, 0.016)</code></td>
+<td>ON 時のボタン色</td>
+</tr>
+<tr>
+<td><code>Off Color</code></td>
+<td>黒</td>
+<td>OFF 時のボタン色</td>
+</tr>
+<tr>
+<td><code>Initial State</code></td>
+<td><code>false</code></td>
+<td>ワールド入室直後の ON/OFF</td>
+</tr>
+<tr>
+<td><code>Use Game Object Name For Label</code></td>
+<td><code>true</code></td>
+<td>ON のとき、子ラベルに GameObject 名を表示する</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mashirolocalonoffswitch">MashiroLocalOnOffSwitch</h3>
+<p>初期状態のフィールド名だけ他と異なり、<strong><code>Start Enabled</code></strong>（Global 系の <code>Initial State</code> に相当）です。</p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Target</code></td>
+<td>–</td>
+<td>ON/OFF を切り替える GameObject</td>
+</tr>
+<tr>
+<td><code>Start Enabled</code></td>
+<td><code>false</code></td>
+<td>ワールド入室直後の ON/OFF</td>
+</tr>
+<tr>
+<td><code>Use Custom Labels</code></td>
+<td><code>false</code></td>
+<td>ON のとき、ラベル文字列を ON/OFF で切り替える</td>
+</tr>
+<tr>
+<td><code>Enabled Label</code></td>
+<td><code>ON</code></td>
+<td><code>Use Custom Labels</code> が ON のときの ON 時ラベル</td>
+</tr>
+<tr>
+<td><code>Disabled Label</code></td>
+<td><code>OFF</code></td>
+<td><code>Use Custom Labels</code> が ON のときの OFF 時ラベル</td>
+</tr>
+<tr>
+<td><code>Enabled Color</code></td>
+<td><code>(0.69, 0.239, 0.016)</code></td>
+<td>ON 時のボタン色</td>
+</tr>
+<tr>
+<td><code>Disabled Color</code></td>
+<td>黒</td>
+<td>OFF 時のボタン色</td>
+</tr>
+<tr>
+<td><code>Update Button Color</code></td>
+<td><code>true</code></td>
+<td>OFF にするとボタン色を書き換えない（見た目を自前で管理したいとき）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mashiromultiglobalonoffコントローラ">MashiroMultiGlobalOnOff（コントローラ）</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Target</code></td>
+<td>–</td>
+<td>ON/OFF を切り替える GameObject</td>
+</tr>
+<tr>
+<td><code>Buttons</code></td>
+<td>–</td>
+<td>この対象を制御する全ボタン（見た目を揃えるため全て登録する）</td>
+</tr>
+<tr>
+<td><code>Initial State</code></td>
+<td><code>false</code></td>
+<td>ワールド入室直後の ON/OFF</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mashiromultiglobalonoffbuttonボタン">MashiroMultiGlobalOnOffButton（ボタン）</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Controller</code></td>
+<td>–</td>
+<td>状態を管理する <code>MashiroMultiGlobalOnOff</code></td>
+</tr>
+<tr>
+<td><code>On Color</code></td>
+<td><code>(0.69, 0.239, 0.016)</code></td>
+<td>ON 時のボタン色</td>
+</tr>
+<tr>
+<td><code>Off Color</code></td>
+<td>黒</td>
+<td>OFF 時のボタン色</td>
+</tr>
+<tr>
+<td><code>Use Game Object Name For Label</code></td>
+<td><code>true</code></td>
+<td>ON のとき、子ラベルに GameObject 名を表示する</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ラベルの扱い">ラベルの扱い</h2>
+<p>子の <code>TextMeshProUGUI</code> は自動的に検出されますが、そこに入る文字列はコンポーネントによって異なります。</p>
+<ul>
+<li><strong><code>MashiroGlobalOnOffSwitch</code> / <code>MashiroMultiGlobalOnOffButton</code></strong>: <code>Use Game Object Name For Label</code> が ON（既定）のとき、起動時にラベルへ <strong>GameObject 名</strong> を設定します。OFF にするとシーンで設定した文字列のままです。いずれの場合も ON/OFF で文字列は変わりません。</li>
+<li><strong><code>MashiroLocalOnOffSwitch</code></strong>: GameObject 名は使いません。既定（<code>Use Custom Labels</code> が OFF）では<strong>シーンで設定した文字列をそのまま保持</strong>します。<code>Use Custom Labels</code> を ON にすると、ON 時は <code>Enabled Label</code>、OFF 時は <code>Disabled Label</code> に切り替わります。</li>
+</ul>
+<h2 id="操作方法">操作方法</h2>
+<h3 id="mashiroglobalonoffswitch2-種類サポート">MashiroGlobalOnOffSwitch（2 種類サポート）</h3>
+<p>以下のどちらの形態でも動作します。両者の併用も可能です。</p>
+<h4 id="a-ui-ボタンとして使う">A. UI ボタンとして使う</h4>
+<ul>
+<li>対象 GameObject に <code>Button</code> コンポーネントを付け、<code>OnClick()</code> から
+当該スクリプトの <code>OnButtonClick</code> を呼ぶように設定します。</li>
+<li>UI のクリック操作で ON/OFF が切り替わります。</li>
+</ul>
+<h4 id="b-cube-などの-3d-オブジェクトとして使う">B. Cube などの 3D オブジェクトとして使う</h4>
+<ul>
+<li>対象 GameObject に <code>Collider</code>（Cube の <code>BoxCollider</code> 等）を付けます。
+<code>Button</code> コンポーネントは不要です。</li>
+<li>VRChat の「Use（インタラクト）」操作で ON/OFF が切り替わります。</li>
+<li>A と B を併用することもできます（例: ワールドスペースの UI ボタンに
+3D Collider を重ねて、ポインタクリックと近接インタラクトの両方を
+受け付ける構成）。</li>
+</ul>
+<h3 id="mashirolocalonoffswitch2-種類サポート">MashiroLocalOnOffSwitch（2 種類サポート）</h3>
+<p><code>MashiroGlobalOnOffSwitch</code> と同様に、以下のどちらの形態でも動作します（併用も可能）。
+切り替えはローカルのみで、他プレイヤーには同期されません。</p>
+<h4 id="a-ui-ボタンとして使う-1">A. UI ボタンとして使う</h4>
+<ul>
+<li>対象 GameObject に <code>Button</code> コンポーネントを付け、<code>OnClick()</code> から
+当該スクリプトの <code>OnButtonClick</code> を呼ぶように設定します。</li>
+<li>UI のクリック操作で ON/OFF が切り替わります。</li>
+</ul>
+<h4 id="b-cube-などの-3d-オブジェクトとして使う-1">B. Cube などの 3D オブジェクトとして使う</h4>
+<ul>
+<li>対象 GameObject に <code>Collider</code>（Cube の <code>BoxCollider</code> 等）を付けます。
+<code>Button</code> コンポーネントは不要です。</li>
+<li>VRChat の「Use（インタラクト）」操作で ON/OFF が切り替わります。</li>
+<li>A と B を併用することもできます。</li>
+</ul>
+<h2 id="mashiroglobalonoffswitch-固有の挙動">MashiroGlobalOnOffSwitch 固有の挙動</h2>
+<ul>
+<li>状態はマスタークライアントが初期化し、<code>UdonSynced</code> により全員に同期されます。</li>
+<li>後から Join したプレイヤーには現在の状態が反映されます。</li>
+<li>操作したプレイヤーが自動的にオーナーになります。</li>
+</ul>
+<h2 id="mashiromultiglobalonoff複数ボタン連動">MashiroMultiGlobalOnOff（複数ボタン連動）</h2>
+<p>1 つの対象 GameObject を、複数のボタンから連動して ON/OFF する構成です。
+<strong>同期状態をコントローラ 1 箇所だけに集約する</strong>ことで、複数ボタン間の競合や
+Join 時の表示食い違いを構造的に防ぎます。</p>
+<h3 id="構成">構成</h3>
+<ul>
+<li><strong><code>MashiroMultiGlobalOnOff</code>（コントローラ）</strong>: 対象 GameObject と同期状態（唯一の真実）を
+保持します。状態を持つのはこのコンポーネントだけです。</li>
+<li><strong><code>MashiroMultiGlobalOnOffButton</code>（ボタン）</strong>: 押下をコントローラへ転送し、見た目は
+コントローラの状態をミラーするだけ。同期状態は持ちません。1 つの対象に対して複数並べられます。</li>
+</ul>
+<h3 id="セットアップ">セットアップ</h3>
+<ol>
+<li>空の GameObject（または任意のオブジェクト）に <code>MashiroMultiGlobalOnOff</code> を付け、
+<strong>Target</strong> に制御対象、<strong>Initial State</strong> に初期状態を設定します。</li>
+<li>各ボタンの GameObject に <code>MashiroMultiGlobalOnOffButton</code> を付け、<strong>Controller</strong> に 1. の
+コントローラを指定します。ボタン色・ラベルは各ボタンで設定します。</li>
+<li>コントローラの <strong>Buttons</strong> 配列に、2. で作った全ボタンを登録します
+（見た目を全ボタンで同期させるために必要）。</li>
+<li>各ボタンは <code>MashiroGlobalOnOffSwitch</code> と同様、UI <code>Button</code>（<code>OnClick</code> から
+<code>OnButtonClick</code> を呼ぶ）と 3D <code>Collider</code>（インタラクト）の両形態に対応します。</li>
+</ol>
+<h3 id="挙動">挙動</h3>
+<ul>
+<li>どのボタンから押しても、コントローラの 1 つの同期状態が反転し、対象と全ボタンの見た目が
+一致して更新されます。</li>
+<li>同期変数はコントローラに 1 つだけなので、後から Join したプレイヤーでも状態が競合しません。</li>
+<li>操作したプレイヤーがコントローラのオーナーになります。</li>
+</ul>
+<h2 id="api-リファレンス">API リファレンス</h2>
+<h3 id="mashirolocalonoffswitchローカル">MashiroLocalOnOffSwitch（ローカル）</h3>
+<table>
+<thead>
+<tr>
+<th>メソッド</th>
+<th>用途</th>
+<th>呼び出し種別</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OnButtonClick()</code></td>
+<td>状態をトグル</td>
+<td><code>Button.OnClick</code> から配線</td>
+</tr>
+<tr>
+<td><code>Interact()</code></td>
+<td>状態をトグル</td>
+<td>オブジェクトへの Interact（配線不要）</td>
+</tr>
+<tr>
+<td><code>Toggle()</code> / <code>SetState(bool)</code> / <code>GetState()</code></td>
+<td>外部からの制御・参照</td>
+<td>他の Udon から呼ぶ内部連携用</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mashiroglobalonoffswitch全体同期">MashiroGlobalOnOffSwitch（全体同期）</h3>
+<table>
+<thead>
+<tr>
+<th>メソッド</th>
+<th>用途</th>
+<th>呼び出し種別</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OnButtonClick()</code></td>
+<td>状態をトグル（全員同期）</td>
+<td><code>Button.OnClick</code> から配線</td>
+</tr>
+<tr>
+<td><code>Interact()</code></td>
+<td>状態をトグル（全員同期）</td>
+<td>オブジェクトへの Interact（配線不要）</td>
+</tr>
+<tr>
+<td><code>State</code>（プロパティ）</td>
+<td>現在状態の取得（設定は内部からのみ）</td>
+<td>内部専用（配線不要）</td>
+</tr>
+<tr>
+<td><code>OnDeserialization()</code> / <code>OnPlayerJoined()</code></td>
+<td>同期処理</td>
+<td>内部専用（配線不要）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mashiromultiglobalonoff複数ボタン連動コントローラ">MashiroMultiGlobalOnOff（複数ボタン連動・コントローラ）</h3>
+<table>
+<thead>
+<tr>
+<th>メソッド</th>
+<th>用途</th>
+<th>呼び出し種別</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Toggle()</code></td>
+<td>状態をトグル（全員同期）</td>
+<td>ボタン側が呼ぶ内部連携用。他の Udon からも呼び出し可</td>
+</tr>
+<tr>
+<td><code>GetState()</code></td>
+<td>現在状態の取得</td>
+<td>他の Udon から呼ぶ内部連携用</td>
+</tr>
+<tr>
+<td><code>State</code>（プロパティ）</td>
+<td>現在状態の取得（設定は内部からのみ）</td>
+<td>内部専用（配線不要）</td>
+</tr>
+<tr>
+<td><code>OnDeserialization()</code> / <code>OnPlayerJoined()</code></td>
+<td>同期処理</td>
+<td>内部専用（配線不要）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mashiromultiglobalonoffbutton複数ボタン連動ボタン">MashiroMultiGlobalOnOffButton（複数ボタン連動・ボタン）</h3>
+<table>
+<thead>
+<tr>
+<th>メソッド</th>
+<th>用途</th>
+<th>呼び出し種別</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OnButtonClick()</code></td>
+<td>コントローラへトグルを転送</td>
+<td><code>Button.OnClick</code> から配線</td>
+</tr>
+<tr>
+<td><code>Interact()</code></td>
+<td>同上</td>
+<td>オブジェクトへの Interact（配線不要）</td>
+</tr>
+<tr>
+<td><code>ApplyVisual(bool)</code></td>
+<td>表示更新</td>
+<td>コントローラが呼ぶ内部連携用</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
+<ul>
+<li>メール: <a href="mailto:contact@mashirotheater.com">contact@mashirotheater.com</a></li>
+<li>X: <a href="https://x.com/hakushiza">https://x.com/hakushiza</a></li>
+<li>Discord: <a href="https://discord.com/invite/yU2Es38sVX">https://discord.com/invite/yU2Es38sVX</a></li>
+</ul>
+
+</main>
+<footer>main@2698a7a 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
+</body>
+</html>

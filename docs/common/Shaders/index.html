@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>_Common / Shaders — Mashiro Small Theater</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fg: #1f1f1f; --bg: #ffffff; --muted: #666666; --line: rgba(127,127,127,.3);
+    --code-bg: rgba(127,127,127,.14); --accent: #E85900;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e6e6; --bg: #161616; --muted: #999999; }
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.75; max-width: 52rem; margin: 0 auto; padding: 1.2rem 16px 4rem;
+    color: var(--fg); background: var(--bg); overflow-wrap: anywhere;
+  }
+  a { color: var(--accent); }
+  nav { font-size: .9rem; color: var(--muted); margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; line-height: 1.4; }
+  h2 { margin-top: 2.4rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+  h3 { margin-top: 1.8rem; }
+  code { background: var(--code-bg); padding: .1rem .35rem; border-radius: .25rem; font-size: .9em; }
+  pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: .4rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; display: block; overflow-x: auto; margin: 1rem 0; }
+  th, td { text-align: left; padding: .45rem .7rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--code-bg); }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid var(--line); color: var(--muted); }
+  img { max-width: 100%; }
+  footer { margin-top: 3rem; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<nav><a href="../../">マニュアル</a> / <a href="../">Mashiro Theater Common</a></nav>
+<main>
+<h1 id="_common--shaders">_Common / Shaders</h1>
+<p>ワールド共通で使えるユーティリティシェーダー群です。</p>
+<hr />
+<h2 id="uicanvasopaque">UICanvasOpaque</h2>
+<p><code>Shader &quot;MashiroTheater/UICanvasOpaque&quot;</code> / <code>UICanvasOpaque.shader</code></p>
+<p>Canvas (RawImage / Image) のパネル背景が <strong>奥にある別の UI (動画プレイヤー UI 等) を透けさせてしまう問題</strong> を、Canvas 自体に貼るマテリアルだけで解消するためのシェーダーです。</p>
+<h3 id="背景">背景</h3>
+<p>Unity 標準の <code>UI/Default</code> は <code>ZWrite Off</code> で Transparent キュー (3000) に描画されるため、深度バッファに書き込みません。結果として後から描画される別 Transparent (別 Canvas や半透明オブジェクト) を奥側で隠せず、「パネルの奥が透けて見える」状態になります。</p>
+<p>本シェーダーは <code>UI/Default</code> を踏襲しつつ以下を変更し、不透明ピクセルが深度バッファに書き込まれるようにしています。</p>
+<ul>
+<li><code>ZWrite On</code></li>
+<li><code>_OpaqueAlphaThreshold</code> 未満のアルファを <code>clip</code> で破棄</li>
+<li>書き込む深度値だけを画面位置を変えずに「ごく僅かに奥」へバイアス (<code>_DepthBias</code>) し、同一 Canvas 内の兄弟要素 (テキスト等) と Z-fighting しないようにする</li>
+</ul>
+<h3 id="解決できるもの--できないもの">解決できるもの / できないもの</h3>
+<ul>
+<li>✅ 通常の Transparent シェーダー (<code>UI/Default</code> 等) で描画された奥の UI / オブジェクト</li>
+<li>✅ 不透明シェーダーで描画されたワールドメッシュ</li>
+<li>❌ <strong>VRChat のネームプレート</strong> … 常時最前面表示 (overlay レイヤー / <code>ZTest Always</code> 相当) で描画されるため、Canvas 側マテリアルでは原理的に隠せません。プレイヤー側の Safety / ネームプレート設定に依存するため、配置で逃がす必要があります。</li>
+</ul>
+<h3 id="使い方">使い方</h3>
+<ol>
+<li>プロジェクト内の任意の場所 (例: <code>_Common/Materials/</code>) で <code>Create &gt; Material</code> 。</li>
+<li>Shader に <code>MashiroTheater/UICanvasOpaque</code> を選択。</li>
+<li>パネルに使っている RawImage / Image の <strong>Material</strong> 欄に割り当て。</li>
+</ol>
+<h3 id="inspector-パラメータ">Inspector パラメータ</h3>
+<table>
+<thead>
+<tr>
+<th>プロパティ</th>
+<th>説明</th>
+<th>推奨値</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Tint</code></td>
+<td>色 (RawImage/Image の <code>color</code> と乗算)</td>
+<td>用途に応じて</td>
+</tr>
+<tr>
+<td><code>Opaque Alpha Threshold</code></td>
+<td>このアルファ未満のピクセルは破棄 (描画されない &amp; 深度も書かない)</td>
+<td>完全不透明パネル: <code>0.99</code> / フチを残したい場合: <code>0.5</code> 前後</td>
+</tr>
+<tr>
+<td><code>Depth Bias (push back)</code></td>
+<td>書き込む深度値だけを奥側にずらす量。同一 Canvas 内のテキストや子要素と Z-fighting して点滅・欠けが出るときに使用</td>
+<td>通常: <code>0.001</code> / 干渉が残るなら少し増やす</td>
+</tr>
+<tr>
+<td><code>Use Alpha Clip</code></td>
+<td>UI 標準の <code>UNITY_UI_ALPHACLIP</code> 互換 (通常 OFF のままで OK)</td>
+<td>OFF</td>
+</tr>
+</tbody>
+</table>
+<p>その他 (Stencil / ColorMask) は <code>UI/Default</code> と同じ意味で、Mask コンポーネントとの互換性のために残してあります。</p>
+<h3 id="注意">注意</h3>
+<ul>
+<li>アンチエイリアスのかかったフチや半透明グラデーションは、<code>Opaque Alpha Threshold</code> のしきい値で<strong>完全に破棄されます</strong>。柔らかいフチが必要な場合はしきい値を下げるか、フチ部分と背景部分を別 Image に分けてください。</li>
+<li>Canvas が <strong>Screen Space - Overlay</strong> の場合は、そもそも深度バッファを参照しない描画のため本シェーダーの利点はありません。<strong>World Space Canvas</strong> での利用を想定しています。</li>
+<li>ワールド内に複数の本シェーダー製パネルを重ねる場合は、互いの前後関係は Transform 距離で決まります。順序が安定しない場合は Canvas の <code>Sorting Order</code> で調整してください。</li>
+<li>同じ Canvas 内で「最背面の Panel だけにこのシェーダーを適用し、上に文字やボタンを乗せる」使い方を想定しています。Panel と兄弟要素が同じ Z 平面にいるため、<code>Depth Bias</code> を <code>0</code> にすると Z-fighting で文字や子要素が欠けることがあります。デフォルト値のままで通常問題ないはずです。</li>
+</ul>
+
+</main>
+<footer>main@2698a7a 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
+</body>
+</html>

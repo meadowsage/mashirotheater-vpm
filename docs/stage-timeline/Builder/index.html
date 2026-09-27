@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StageTimeline Builder — 高度な連携ガイド（Animator / Udon） — Mashiro Small Theater</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fg: #1f1f1f; --bg: #ffffff; --muted: #666666; --line: rgba(127,127,127,.3);
+    --code-bg: rgba(127,127,127,.14); --accent: #E85900;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e6e6; --bg: #161616; --muted: #999999; }
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.75; max-width: 52rem; margin: 0 auto; padding: 1.2rem 16px 4rem;
+    color: var(--fg); background: var(--bg); overflow-wrap: anywhere;
+  }
+  a { color: var(--accent); }
+  nav { font-size: .9rem; color: var(--muted); margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; line-height: 1.4; }
+  h2 { margin-top: 2.4rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+  h3 { margin-top: 1.8rem; }
+  code { background: var(--code-bg); padding: .1rem .35rem; border-radius: .25rem; font-size: .9em; }
+  pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: .4rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; display: block; overflow-x: auto; margin: 1rem 0; }
+  th, td { text-align: left; padding: .45rem .7rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--code-bg); }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid var(--line); color: var(--muted); }
+  img { max-width: 100%; }
+  footer { margin-top: 3rem; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<nav><a href="../../">マニュアル</a> / <a href="../">Mashiro Theater Stage Timeline Manager</a></nav>
+<main>
+<h1 id="stagetimeline-builder--高度な連携ガイドanimator--udon">StageTimeline Builder — 高度な連携ガイド（Animator / Udon）</h1>
+<p>StageTimeline Builder では、シーンの進行に合わせて対象 Animator の状態を切り替えたり、
+任意の Udon スクリプトの関数を呼んだりできます（いずれも「高度な機能を表示」を ON にすると現れます）。</p>
+<h2 id="animator-連携">Animator 連携</h2>
+<p>用途に応じて 2 種類を使い分けてください。</p>
+<table>
+<thead>
+<tr>
+<th>種別</th>
+<th>送るもの</th>
+<th>性質</th>
+<th>代表的な使いどころ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Animator パラメータ (Int)</strong></td>
+<td><code>SetInteger</code></td>
+<td>状態（上書き・保持される）</td>
+<td>「State を 1 → 2 に切り替えて保持したい」</td>
+</tr>
+<tr>
+<td><strong>Animator トリガー</strong></td>
+<td><code>SetTrigger</code></td>
+<td>イベント（その瞬間に一度だけ発火）</td>
+<td>「特定の演出アニメを 1 回だけ再生したい」</td>
+</tr>
+</tbody>
+</table>
+<p>Int は「今どの状態か」を保持し続けます。巻き戻すと過去時点の値に復元されます。
+トリガーは「その瞬間に一度だけ」発火し、状態としては残りません（1 再生につき各発火は一度きり）。</p>
+<h2 id="プリセットを登録するプリセットタブ">プリセットを登録する（プリセットタブ）</h2>
+<h3 id="animator-トリガー">Animator トリガー</h3>
+<ol>
+<li>「Animator トリガー」セクションで <strong>＋ Animator トリガーを追加</strong>。</li>
+<li><strong>Animator</strong> に対象を割り当てます。</li>
+<li><strong>送れる Trigger 一覧</strong> に、その Animator へ送りたい Trigger を必要な数だけ登録します。
+<ul>
+<li><strong>Trigger 名</strong>: AnimatorController に定義されている Trigger パラメータ名（<code>SetTrigger</code> に渡す名前）。</li>
+<li><strong>表示名</strong>: シーン側プルダウンでの表示名（省略時は Trigger 名を表示）。</li>
+</ul>
+</li>
+</ol>
+<p>1 つの Animator に複数の Trigger をまとめて登録しておき、シーンごとに「どれを送るか」を選ぶ運用です。</p>
+<h3 id="参照の仕組み">参照の仕組み</h3>
+<p>シーン側エントリは、選んだ Trigger を ID で参照します。</p>
+<ul>
+<li>プリセット側で <strong>Trigger 名・表示名を変更</strong>しても、シーン側の選択はそのまま追従します（再選択不要）。</li>
+<li>ID が失われている古いデータは、エントリが保持している Trigger 名が現在のプリセットにあれば自動で再接続されます。</li>
+<li>プリセットから <strong>Trigger を削除した</strong>場合や、<strong>同名の Trigger が無いプリセットへ切り替えた</strong>場合は
+「<strong>[参照切れ — 再選択してください]</strong>」表示になります。プルダウンから選び直してください
+（そのまま Generate するとそのエントリはスキップされ Console に Warning が出ます）。</li>
+</ul>
+<h2 id="シーンで送るシーンタブ">シーンで送る（シーンタブ）</h2>
+<ol>
+<li>対象シーンの「Animator トリガー」で <strong>＋ プリセット選択</strong>（または <strong>＋ 自由指定</strong>）。</li>
+<li>プリセットと、送る <strong>Trigger</strong> をプルダウンから選びます。</li>
+<li><strong>遅延(秒)</strong> を指定すると、シーン開始からその秒数後に送ります。</li>
+</ol>
+<ul>
+<li><strong>自由指定</strong>: プリセットを使わず、Animator と Trigger 名を直接入力します。</li>
+</ul>
+<h2 id="生成時のチェックとスキップ条件">生成時のチェックとスキップ条件</h2>
+<p>Generate 時に次を検証し、問題があればそのエントリを <strong>スキップして Console に Warning</strong> を出します
+（古い設定のまま黙って動き続ける事故を防ぐため）。</p>
+<ul>
+<li>Animator が未設定</li>
+<li>Trigger 名が解決できない（プリセット側で Trigger が削除された／別プリセットに切り替えて参照が失効した）</li>
+<li>対象パラメータが Trigger 型でない、または AnimatorController に存在しない</li>
+</ul>
+<h2 id="境界跨ぎ対策リード時間">境界跨ぎ対策（リード時間）</h2>
+<p>シーン開始ちょうどで発火するトリガーが「前シーンの最終フレームで消費される」事故を避けるため、
+発火はシーン開始より内側へ最低 0.1 秒ずらします（<code>AnimatorTriggerSceneStartLeadSeconds</code>）。
+遅延をこれより大きく指定した場合は、指定値が優先されます。</p>
+<h2 id="生成される可視化トラック">生成される可視化トラック</h2>
+<p>Generate すると Timeline 上に <code>Animator Triggers</code> グループ（Animator ごとの muted トラック）が作られ、
+各発火位置に <code>▶ &lt;Trigger 名&gt;</code> のマーカークリップが並びます。動作には影響しない確認用の表示です。</p>
+<hr />
+<h2 id="udon-イベント連携">Udon イベント連携</h2>
+<p>シーンの進行に合わせて、任意の <code>UdonSharpBehaviour</code> の関数を <code>SendCustomEvent</code> で呼べます。
+Animator トリガーと同じ「一度きりのイベント」で、<strong>再生ヘッドが指定タイミングを通過した瞬間に一度だけ</strong>
+発火します。シーン送り（Next）や途中参加で過去のタイミングを飛び越えた場合、そのイベントは
+発火せずスキップされます（過去分のキャッチアップ再発火はしません）。</p>
+<h3 id="呼ばれる側の条件重要">呼ばれる側の条件（重要）</h3>
+<ul>
+<li>呼べるのは <strong>public・引数なしのメソッド</strong> です（<code>SendCustomEvent</code> は引数を渡せません）。</li>
+<li>発火は <strong>各クライアントでローカル実行</strong> されます。タイムラインは各クライアントでローカル再生され
+時刻同期されるため、全員が同じ時刻にローカル発火して演出が揃います。
+したがって呼ぶ関数は <strong>全クライアントで実行されて安全なもの</strong>（SFX 再生・アニメ再生など）にしてください。</li>
+<li>対象オブジェクトが非アクティブだと Udon が動かない場合があります。</li>
+</ul>
+<h3 id="owner-のみ実行owneronlyオプション">Owner のみ実行（OwnerOnly）オプション</h3>
+<p>内部で <code>SendCustomNetworkEvent</code> を呼ぶ、あるいは Owner 権限を要する「1 人が起点になるべき関数」は、
+全クライアントでローカル発火させると多重送信・競合を起こします。そうした関数には <strong>OwnerOnly</strong> を
+ON にしてください。ON の場合、<strong>対象オブジェクトの Owner のクライアントだけがローカル発火</strong>します。</p>
+<ul>
+<li><strong>OFF（既定）</strong>: 全クライアントがローカル発火。<code>local.TeleportTo</code> のようなローカル完結の処理向け。</li>
+<li><strong>ON</strong>: 対象の Owner だけが発火。そこから内部で <code>SendCustomNetworkEvent(All)</code> 等を撒く前提の関数向け。</li>
+</ul>
+<p>設定場所:</p>
+<ul>
+<li><strong>プリセットのイベント一覧</strong>: 各イベント行の「Ownerのみ」チェックで宣言します。関数固有の性質なので
+ここで 1 度設定すれば、そのイベントを使う全シーンに自動適用されます（選択肢列挙型の追従）。</li>
+<li><strong>自由指定(Direct)</strong>: エントリの「対象 Owner のみ実行」チェックで指定します。</li>
+</ul>
+<blockquote>
+<p>例: <code>WarpEntrancePlayers</code>（各自が自分をローカルにテレポート）は OFF。
+<code>OnClickWarpEntrance</code>（内部で <code>SendCustomNetworkEvent(All)</code>）を呼ぶ設計にするなら ON。
+ただし原則は「ローカル完結版の関数を OFF で呼ぶ」方がシンプルで確実です。</p>
+</blockquote>
+<h3 id="プリセットを登録するプリセットタブ-1">プリセットを登録する（プリセットタブ）</h3>
+<ol>
+<li>「Udon イベント」セクションで <strong>＋ Udon イベントを追加</strong>。</li>
+<li><strong>対象 Udon</strong> に送信先の <code>UdonSharpBehaviour</code> を割り当てます。</li>
+<li><strong>呼べるイベント一覧</strong> に、呼びたい関数を必要な数だけ登録します。
+<ul>
+<li><strong>関数名</strong>: <code>SendCustomEvent</code> に渡す public メソッド名。</li>
+<li><strong>表示名</strong>: シーン側プルダウンでの表示名（省略時は関数名を表示）。</li>
+</ul>
+</li>
+</ol>
+<p>1 つの Udon スクリプトに複数の関数をまとめて登録しておき、シーンごとに「どれを呼ぶか」を選ぶ運用です。</p>
+<p>参照の仕組みは Animator トリガーと同じです。関数名・表示名を変更してもシーン側の選択は追従し、
+ID が失われている古いデータはエントリが保持している関数名で自動的に再接続されます。
+関数を削除した場合や、同名の関数が無いプリセットへ切り替えた場合は「参照切れ」表示になります。</p>
+<h3 id="シーンで送るシーンタブ-1">シーンで送る（シーンタブ）</h3>
+<ol>
+<li>対象シーンの「Udon イベント」で <strong>＋ プリセット選択</strong>（または <strong>＋ 自由指定</strong>）。</li>
+<li>プリセットと、呼ぶ <strong>イベント</strong> をプルダウンから選びます。</li>
+<li><strong>タイミング</strong> で「最初」（シーン開始時）か「最後」（シーン終了時）を選びます。</li>
+<li><strong>遅延(秒)</strong> を指定すると、シーン開始からその秒数後に送ります（「最初」のときのみ有効）。</li>
+</ol>
+<ul>
+<li><strong>自由指定</strong>: プリセットを使わず、対象 Udon と関数名を直接入力します。</li>
+</ul>
+<p>「最後」を選ぶと、そのシーンの終了直前（境界より手前）で発火します。次のシーンへ移る前に
+確実に消費させたい処理（暗転前の後始末など）に使えます。</p>
+<h3 id="生成時のチェック">生成時のチェック</h3>
+<ul>
+<li>対象 Udon が未設定、または関数名が解決できない（プリセット側で削除／別プリセットへ切替で失効）
+エントリは <strong>スキップして Console に Warning</strong> を出します。</li>
+<li>関数名が対象スクリプトに public・引数なしメソッドとして見つからない場合は <strong>Warning のみ</strong>（生成は継続）。
+存在しない関数を呼んでも実行時は無害なため、名前の打ち間違い検知の補助として通知します。</li>
+</ul>
+<h3 id="境界跨ぎ対策可視化トラック">境界跨ぎ対策・可視化トラック</h3>
+<p>「最初」の発火はシーン開始より内側へ最低 0.1 秒ずらします（<code>UdonEventSceneStartLeadSeconds</code>）。
+「最後」の発火はシーン終了より 0.1 秒手前にずらします（<code>UdonEventSceneEndLeadSeconds</code>）。
+これにより境界ちょうどでの取りこぼし（前シーンの最終フレームで消費／シーン終了で取りこぼし）を防ぎます。
+シーン尺がリード時間より短い場合は Warning を出し、発火をシーン先頭へ寄せます。</p>
+<p>Generate すると <code>Udon Events</code> グループに Udon ごとの muted トラックが作られ、
+各発火位置に <code>▶ &lt;関数名&gt;()</code> のマーカークリップが並びます。</p>
+<hr />
+<p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
+<ul>
+<li>メール: <a href="mailto:contact@mashirotheater.com">contact@mashirotheater.com</a></li>
+<li>X: <a href="https://x.com/hakushiza">https://x.com/hakushiza</a></li>
+<li>Discord: <a href="https://discord.com/invite/yU2Es38sVX">https://discord.com/invite/yU2Es38sVX</a></li>
+</ul>
+
+</main>
+<footer>main@2698a7a 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
+</body>
+</html>

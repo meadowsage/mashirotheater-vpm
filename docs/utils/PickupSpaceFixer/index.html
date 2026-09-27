@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mashiro Pickup Space Fixer — Mashiro Small Theater</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fg: #1f1f1f; --bg: #ffffff; --muted: #666666; --line: rgba(127,127,127,.3);
+    --code-bg: rgba(127,127,127,.14); --accent: #E85900;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e6e6; --bg: #161616; --muted: #999999; }
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.75; max-width: 52rem; margin: 0 auto; padding: 1.2rem 16px 4rem;
+    color: var(--fg); background: var(--bg); overflow-wrap: anywhere;
+  }
+  a { color: var(--accent); }
+  nav { font-size: .9rem; color: var(--muted); margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; line-height: 1.4; }
+  h2 { margin-top: 2.4rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+  h3 { margin-top: 1.8rem; }
+  code { background: var(--code-bg); padding: .1rem .35rem; border-radius: .25rem; font-size: .9em; }
+  pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: .4rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; display: block; overflow-x: auto; margin: 1rem 0; }
+  th, td { text-align: left; padding: .45rem .7rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--code-bg); }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid var(--line); color: var(--muted); }
+  img { max-width: 100%; }
+  footer { margin-top: 3rem; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<nav><a href="../../">マニュアル</a> / <a href="../">Mashiro Theater Utils</a></nav>
+<main>
+<h1 id="mashiro-pickup-space-fixer">Mashiro Pickup Space Fixer</h1>
+<p>舞台小道具（VRChat の Pickup オブジェクト）を、<strong>持っている状態でのダブルトリガー</strong>でその場の空間に固定し、<strong>もう一度掴むだけで解除</strong>するギミックです。</p>
+<p>固定中は重力を切り、Rigidbody をキネマティック化し、コライダーを IsTrigger 化することで、物理から切り離して空間にピタッと静止させます。座標を強制ロックするわけではないので固定中でも普通に掴んで動かせ、<strong>掴んだ瞬間に物理を元へ戻す</strong>ため、解除しても手の中に収まったまま（落下しない）になります。固定状態はネットワーク同期されるため、後から入室したプレイヤーにも正しく反映されます。</p>
+<h2 id="できること">できること</h2>
+<ul>
+<li>小道具を<strong>手に持った状態でトリガーを素早く2回引く</strong>と、その位置・姿勢で空間に固定される。</li>
+<li>固定中の小道具を<strong>もう一度掴む</strong>と固定が解除され、そのまま手に持った状態になる（落下しない）。</li>
+<li>固定状態は全プレイヤーで同期される（重力・コライダーの状態も含む）。</li>
+</ul>
+<h2 id="セットアップ">セットアップ</h2>
+<ol>
+<li>対象の小道具 GameObject に、以下が揃っていることを確認します。
+<ul>
+<li><code>VRC_Pickup</code>（Pickupable）</li>
+<li><code>VRCObjectSync</code>（位置・回転の同期）</li>
+<li><code>Rigidbody</code></li>
+<li><code>Collider</code>（1つ以上）</li>
+</ul>
+</li>
+<li>同じ GameObject に <code>Mashiro Pickup Space Fixer</code>（<code>MashiroPickupSpaceFixer</code>）コンポーネントを追加します。
+<ul>
+<li>メニュー: <code>Add Component &gt; MashiroTheater &gt; Mashiro Pickup Space Fixer</code></li>
+<li><code>VRC_Pickup</code> / <code>Rigidbody</code> / <code>Collider</code> は<strong>同一 GameObject に付いている前提</strong>で、<code>Start</code> 時に自動取得されます。インスペクタでの参照割り当ては不要です。</li>
+</ul>
+</li>
+</ol>
+<h3 id="箱boxに付ける場合">箱（Box）に付ける場合</h3>
+<p>箱の大きさに合わせた <strong>BoxCollider が1つあれば十分</strong>です。その1つが「掴み判定」と「固定中のトリガー化」を兼ねます。複数コライダーを分ける必要はありません（複数ある場合はすべて IsTrigger 化されます）。</p>
+<h2 id="インスペクタ項目">インスペクタ項目</h2>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Double Trigger Window</td>
+<td>この秒数以内にトリガーを2回引くと固定が発動する（既定 0.3 秒）</td>
+</tr>
+<tr>
+<td>Audio Source</td>
+<td>効果音を鳴らす <code>AudioSource</code>。未設定なら効果音は鳴らない</td>
+</tr>
+<tr>
+<td>Fix Sound</td>
+<td>固定したときに鳴らす <code>AudioClip</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="効果音について">効果音について</h3>
+<p>固定したときに効果音を鳴らせます（任意）。<code>AudioSource</code> を割り当て、<code>Fix Sound</code> にクリップを設定してください。再生は <strong>ローカルのみ</strong>（操作した本人にだけ鳴る）で、ネットワーク同期はしません。空間で鳴らしたい場合は <code>AudioSource</code> の Spatial Blend を 3D 寄りに設定してください。</p>
+<h2 id="操作方法">操作方法</h2>
+<table>
+<thead>
+<tr>
+<th>状態</th>
+<th>操作</th>
+<th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>手に持っている</td>
+<td>トリガーを素早く2回</td>
+<td>その場に固定（重力OFF / 当たり判定はトリガー化）</td>
+</tr>
+<tr>
+<td>固定中</td>
+<td>もう一度掴む</td>
+<td>固定解除 → そのまま手に持った状態（落下しない）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="挙動の詳細注意点">挙動の詳細・注意点</h2>
+<ul>
+<li><strong>解除しても落ちません。</strong> 固定中に掴むと、掴んだ瞬間に物理（重力・キネマティック・コライダー）を元へ戻します。すでに手の中にあるため落下せず、手放せば通常どおり物理が働きます。</li>
+<li><strong>座標は強制ロックしていません。</strong> 重力OFF＋キネマティック化で静止させているだけなので、固定中でも通常どおり掴んで動かせます。</li>
+<li><strong>コライダーは IsTrigger 化されます。</strong> 固定中は他オブジェクトやプレイヤーとの物理的な当たり判定が無くなり、すり抜け可能になります（飾り付け用途を想定）。IsTrigger でも掴み操作は可能です。</li>
+<li><strong>状態同期について。</strong> <code>VRCObjectSync</code> は位置・回転は同期しますが、重力・キネマティック・IsTrigger といった物理プロパティは同期しません。本コンポーネントはこれらを <code>[UdonSynced]</code> の固定フラグで別途同期し、<code>OnDeserialization</code> で各クライアントへ反映します。なお <code>VRCObjectSync</code> は<strong>同一オブジェクト上の Manual 同期 UdonBehaviour と共存できない</strong>ため、本コンポーネントは <code>Continuous</code> 同期で実装しています。</li>
+<li>操作（固定／解除）を行うと、その操作者が自動的にオブジェクトの Owner になります。</li>
+</ul>
+<h2 id="再固定したい場合">再固定したい場合</h2>
+<p>固定中の小道具を掴むと解除されて手に持った状態になります。その状態で再びトリガーを素早く2回引けば、再度その場に固定できます。</p>
+<h2 id="api-リファレンス">API リファレンス</h2>
+<h3 id="mashiropickupspacefixer">MashiroPickupSpaceFixer</h3>
+<p>public 関数は VRChat のイベントオーバーライド（<code>OnPickup</code> / <code>OnPickupUseDown</code> 等）のみです。<strong>配線は不要</strong>で、Inspector の設定だけで動作します。</p>
+<hr />
+<p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
+<ul>
+<li>メール: <a href="mailto:contact@mashirotheater.com">contact@mashirotheater.com</a></li>
+<li>X: <a href="https://x.com/hakushiza">https://x.com/hakushiza</a></li>
+<li>Discord: <a href="https://discord.com/invite/yU2Es38sVX">https://discord.com/invite/yU2Es38sVX</a></li>
+</ul>
+
+</main>
+<footer>main@2698a7a 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
+</body>
+</html>

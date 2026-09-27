@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mashiro Custom Station — Mashiro Small Theater</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fg: #1f1f1f; --bg: #ffffff; --muted: #666666; --line: rgba(127,127,127,.3);
+    --code-bg: rgba(127,127,127,.14); --accent: #E85900;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e6e6; --bg: #161616; --muted: #999999; }
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.75; max-width: 52rem; margin: 0 auto; padding: 1.2rem 16px 4rem;
+    color: var(--fg); background: var(--bg); overflow-wrap: anywhere;
+  }
+  a { color: var(--accent); }
+  nav { font-size: .9rem; color: var(--muted); margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; line-height: 1.4; }
+  h2 { margin-top: 2.4rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+  h3 { margin-top: 1.8rem; }
+  code { background: var(--code-bg); padding: .1rem .35rem; border-radius: .25rem; font-size: .9em; }
+  pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: .4rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; display: block; overflow-x: auto; margin: 1rem 0; }
+  th, td { text-align: left; padding: .45rem .7rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--code-bg); }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid var(--line); color: var(--muted); }
+  img { max-width: 100%; }
+  footer { margin-top: 3rem; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<nav><a href="../../">マニュアル</a> / <a href="../">Mashiro Theater Utils</a></nav>
+<main>
+<h1 id="mashiro-custom-station">Mashiro Custom Station</h1>
+<p>演劇イベントの観客席向けに拡張したカスタム VRCStation ギミックです。</p>
+<h2 id="主な機能">主な機能</h2>
+<ul>
+<li>通常通り Interact で着席</li>
+<li>空席時にマーカー Sprite を表示（着席で非表示、全プレイヤーに同期）</li>
+<li>右スティック左右で連続的に回転（VR 専用・ローカル・メニュー表示中も操作可）</li>
+<li>A ボタン長押し（VR）、Space キー長押し（PC）で降車（1 秒）。スティック / WASD による降車は無効化（フライングカメラ操作中の誤降車防止）</li>
+<li>着席でフルメニューが自動オープン（注意事項タブ）</li>
+<li>タブ切り替え（注意事項 / 公演案内 / 広告）と Sprite スライドのページ送り（端でループ、PC は ←→ キー）</li>
+<li>イスの高さ調整（上下ボタン＋リセット）</li>
+<li>字幕の有効/無効トグル（観客ごとにローカル・<strong>別途字幕システムが必要</strong>。後述）</li>
+<li>「席を立つ」ボタン、メニュー折りたたみ / 展開（折りたたみ時はミニパネル表示）</li>
+<li>操作説明テキストを自動付与（VR / デスクトップで自動切り替え）</li>
+<li>座席番号を親オブジェクト名＋ヒエラルキー順で自動生成（例: <code>A-3</code>）</li>
+<li>降車時に高さ・回転・メニュー状態を自動リセット</li>
+</ul>
+<h2 id="同梱ファイル">同梱ファイル</h2>
+<ul>
+<li><code>MashiroCustomStation.cs</code> — メインスクリプト</li>
+<li><code>MashiroUnlitBillboardCutout.shader</code> — 空席マーカー用ビルボードシェーダー（Unlit + Cutout）</li>
+<li><code>ソファーアイコン.png</code> / <code>ソファーアイコン.mat</code> — 空席マーカー用アイコン</li>
+<li><code>StationPrefab.prefab</code> — 構成例プレハブ</li>
+<li><code>MashiroCustomStationGroup.cs</code> — 複数席の共有参照を一括注入する任意コンポーネント。
+<strong>配布パッケージには含まれません</strong>（劇場内部の字幕・パンフレットシステムとの連携用。後述）</li>
+</ul>
+<h2 id="同期設計">同期設計</h2>
+<ul>
+<li>同期するのは <code>syncedIsOccupied</code>（着席中フラグ）のみ</li>
+<li>回転と高さはローカル処理（VRChat のアバター位置同期で他者にも自然に反映）</li>
+<li><code>BehaviourSyncMode.Manual</code> を使用するため、Late Joiner にも最新の着席状態が自動配信される</li>
+</ul>
+<hr />
+<h2 id="プレハブ構成">プレハブ構成</h2>
+<p><code>StationPrefab.prefab</code> を参考にしてください。最小構成は以下です。</p>
+<pre><code>StationPrefab (root)
+├── MashiroCustomStation … MashiroCustomStation + VRCStation + BoxCollider（Interact 判定）
+│   └── DummySeat（椅子モデル）
+├── MainPanel（Canvas, Render Mode = World Space）
+│   ├── Header … 席番号ラベル・折りたたみボタン
+│   ├── SideBar … タブ・高さ調整
+│   ├── Main … スライド表示・ページ ◀ ▶・ページ数
+│   └── Footer … 操作説明・「席を立つ」ボタン
+├── MiniPanel（Canvas, Render Mode = World Space）
+│   └── Footer … 席番号・操作説明・「展開する」ボタン
+├── EmptyMarker（Quad + MeshRenderer + ビルボードマテリアル）
+├── EnterLocation（着席アンカー Transform）
+│   └── ExitHoldGauge（降車ゲージ用 Canvas）
+└── ExitLocation（降車位置 Transform）
+</code></pre>
+<p><code>MainPanel</code> / <code>MiniPanel</code> はそれぞれ独立した World Space Canvas です。座席番号の自動生成は「スクリプトのある GameObject の親＝席プレハブのルート、その親＝行オブジェクト」という 2 階層を前提とするため、<code>StationPrefab</code> を行ごとの GameObject（<code>A</code>, <code>B</code>, …）の下に並べてください。</p>
+<h2 id="vrcstation-の設定">VRCStation の設定</h2>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>推奨値</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Player Mobility</code></td>
+<td><code>ImmobilizeForVehicle</code></td>
+</tr>
+<tr>
+<td><code>Station Enter Location</code></td>
+<td><code>EnterLocation</code> の Transform</td>
+</tr>
+<tr>
+<td><code>Station Exit Location</code></td>
+<td><code>ExitLocation</code> の Transform（降車時の立ち位置。不要なら未設定でも可）</td>
+</tr>
+<tr>
+<td><code>Disable Station Exit</code></td>
+<td>スクリプトが <code>Start()</code> で <code>true</code> に上書きします</td>
+</tr>
+<tr>
+<td><code>Animator Controller</code></td>
+<td>用途に応じて設定（座りモーションなど）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="mashirocustomstation-のフィールド設定">MashiroCustomStation のフィールド設定</h2>
+<p>Inspector は機能ごとに <code>■</code> 見出しのセクションに分かれています。</p>
+<h3 id="-ステーション基本設定">■ ステーション基本設定</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Station</code></td>
+<td>対象 VRCStation</td>
+</tr>
+<tr>
+<td><code>Station Enter Location</code></td>
+<td>VRCStation に指定したものと同じ Transform</td>
+</tr>
+<tr>
+<td><code>Empty Marker</code></td>
+<td>空席マーカーの GameObject</td>
+</tr>
+</tbody>
+</table>
+<h3 id="-メニューパネル">■ メニューパネル</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Menu Panel</code></td>
+<td>着席時に開くフルメニューの GameObject</td>
+</tr>
+<tr>
+<td><code>Mini Panel</code></td>
+<td>折りたたみ時に表示するミニパネルの GameObject</td>
+</tr>
+</tbody>
+</table>
+<h3 id="-座席番号ラベル自動生成">■ 座席番号ラベル（自動生成）</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Seat Label</code></td>
+<td>フルメニュー上の座席番号 TextMeshProUGUI</td>
+</tr>
+<tr>
+<td><code>Mini Seat Label</code></td>
+<td>ミニパネル上の座席番号 TextMeshProUGUI</td>
+</tr>
+</tbody>
+</table>
+<p>座席番号は <code>Start()</code> で <strong>親の親オブジェクト名＋ヒエラルキー順</strong> から自動生成されます（例: 祖父 <code>A</code> の 3 番目 → <code>A-3</code>）。Inspector での手動入力は不要です。</p>
+<h3 id="-タブ">■ タブ</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Tab Buttons</code></td>
+<td>タブ0〜2 の <code>Button</code> 配列（順番通りに3要素）</td>
+</tr>
+<tr>
+<td><code>Tab Button Labels</code></td>
+<td>タブボタン上の <code>TextMeshProUGUI</code> 配列（同順）</td>
+</tr>
+<tr>
+<td><code>Tab 0 Slides</code></td>
+<td>注意事項タブのスライド Sprite 配列</td>
+</tr>
+<tr>
+<td><code>Tab 1 Slides</code></td>
+<td>公演案内タブのスライド Sprite 配列</td>
+</tr>
+<tr>
+<td><code>Tab 2 Slides</code></td>
+<td>広告タブのスライド Sprite 配列</td>
+</tr>
+</tbody>
+</table>
+<p>スライド配列が空のタブでは <code>Slide Area</code> が非表示になります。</p>
+<h3 id="-スライド表示">■ スライド表示</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Slide Area</code></td>
+<td>スライドとページナビ全体の GameObject</td>
+</tr>
+<tr>
+<td><code>Slide Image</code></td>
+<td>スライド表示用の <code>Image</code></td>
+</tr>
+<tr>
+<td><code>Page Count Text</code></td>
+<td>&quot;1 / 5&quot; 形式のページ数表示</td>
+</tr>
+</tbody>
+</table>
+<h3 id="-操作説明テキスト自動付与">■ 操作説明テキスト（自動付与）</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Sub Text VR</code> / <code>Sub Text PC</code></td>
+<td>フルメニューの操作説明 TextMeshProUGUI</td>
+</tr>
+<tr>
+<td><code>Mini Sub Text VR</code> / <code>Mini Sub Text PC</code></td>
+<td>ミニパネルの操作説明 TextMeshProUGUI</td>
+</tr>
+</tbody>
+</table>
+<p>文面は <code>MashiroCustomStation.cs</code> 冒頭の定数で定義され、<code>Start()</code> で自動付与・VR/PC 自動切り替えされます。アサインしたフィールドだけが書き換えられるため、自動付与したくない箇所は未割り当て（None）のままにしてください。</p>
+<h3 id="-字幕任意別システム連携">■ 字幕（任意・別システム連携）</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Subtitle Display</code></td>
+<td>この椅子に紐づく字幕表示コンポーネント（<code>UdonSharpBehaviour</code>）。未設定なら字幕機能はオフ</td>
+</tr>
+<tr>
+<td><code>Subtitle Settings Overlay</code></td>
+<td>フルメニュー内の字幕設定オーバーレイ GameObject。タブ切替・折りたたみ・降車時に自動で閉じる</td>
+</tr>
+</tbody>
+</table>
+<p>字幕トグルは、割り当てたコンポーネントの <code>ToggleSubtitle</code> / <code>SetLangOFF</code> を <code>SendCustomEvent</code> で呼び出します。この2つのイベントを持つ UdonSharpBehaviour であれば何でも接続できます（ましろ小劇場内部では <code>SubtitleSystem</code> の <code>SubtitleDisplay</code> を使用。同システムは現在未配布です）。字幕を使わない場合は未設定のままで問題ありません。</p>
+<h3 id="-動作パラメータ">■ 動作パラメータ</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Rotation Speed Deg Per Sec</code></td>
+<td><code>90</code></td>
+<td>最大入力時の角速度（VR 専用）</td>
+</tr>
+<tr>
+<td><code>Exit Hold Duration</code></td>
+<td><code>1</code> 秒</td>
+<td>長押し降車の必要長押し時間</td>
+</tr>
+<tr>
+<td><code>Height Step</code></td>
+<td><code>0.05</code> m</td>
+<td>1段あたりの高さ変化量</td>
+</tr>
+<tr>
+<td><code>Height Max Level</code></td>
+<td><code>10</code></td>
+<td>上方向最大段階数</td>
+</tr>
+<tr>
+<td><code>Height Min Level</code></td>
+<td><code>-6</code></td>
+<td>下方向最大段階数（負値で指定）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="-降車ゲージ">■ 降車ゲージ</h3>
+<p>長押し降車の進捗を椅子の正面に表示する円形ゲージです。長押し中のみ表示されます。</p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Exit Hold Gauge Root</code></td>
+<td>長押し降車中のみ表示するゲージのルート GameObject。<strong>未割り当てなら機能オフ</strong></td>
+</tr>
+<tr>
+<td><code>Exit Hold Gauge</code></td>
+<td>長押し進捗を表す <code>Image</code>。<code>Image Type = Filled</code> に設定する</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><code>ExitHoldGauge</code> を <code>EnterLocation</code>（着席アンカー）の子にすると、回転・高さ調整をしても常にプレイヤーの正面に表示されます</li>
+<li>パネルとは独立した Canvas にすると、パネルを閉じていても表示されます</li>
+<li>配置の目安: プレイヤー正面方向へ 0.5〜0.7m、目線の少し下</li>
+<li>円形リングの透過 PNG（512px 程度）を用意し、<code>Fill Method = Radial 360</code> を設定。fill をオレンジ <code>(0.91, 0.35, 0)</code>、背景を暗色にすると既存 UI と馴染みます</li>
+</ul>
+<hr />
+<h2 id="api-リファレンス">API リファレンス</h2>
+<h3 id="mashirocustomstationui-へ配線するもの">MashiroCustomStation（UI へ配線するもの）</h3>
+<p>以下は <strong>UI の <code>Button.OnClick</code> から配線</strong>して使います。</p>
+<table>
+<thead>
+<tr>
+<th>メソッド</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OnTab0Button</code> / <code>OnTab1Button</code> / <code>OnTab2Button</code></td>
+<td>タブ切り替え（注意事項 / 公演案内 / 広告）</td>
+</tr>
+<tr>
+<td><code>OnPagePrevButton</code> / <code>OnPageNextButton</code></td>
+<td>スライドのページ送り</td>
+</tr>
+<tr>
+<td><code>OnHeightUpButton</code> / <code>OnHeightDownButton</code></td>
+<td>高さを 1 段階調整</td>
+</tr>
+<tr>
+<td><code>OnResetHeightButton</code></td>
+<td>高さを初期位置へ戻す</td>
+</tr>
+<tr>
+<td><code>OnSubtitleToggleButton</code></td>
+<td>字幕の有効/無効を切替（ローカル）</td>
+</tr>
+<tr>
+<td><code>OnOpenSubtitleSettings</code> / <code>OnCloseSubtitleSettings</code></td>
+<td>字幕設定オーバーレイの開閉</td>
+</tr>
+<tr>
+<td><code>OnExitSeatButton</code></td>
+<td>降車</td>
+</tr>
+<tr>
+<td><code>OnToggleMenuButton</code></td>
+<td>フルメニュー ⇔ ミニパネル切り替え（フルの「折りたたむ」とミニの「展開する」の両方に配線）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mashirocustomstation内部専用配線不要">MashiroCustomStation（内部専用・配線不要）</h3>
+<p>以下は VRChat が呼ぶイベントのオーバーライドです。public ですが <strong>UI からは配線しません</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>メソッド</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Interact()</code></td>
+<td>座席の Interact。VRCStation へ着席させる</td>
+</tr>
+<tr>
+<td><code>OnStationEntered(VRCPlayerApi)</code> / <code>OnStationExited(VRCPlayerApi)</code></td>
+<td>着席・降車時の初期化とリセット、着席フラグの同期</td>
+</tr>
+<tr>
+<td><code>OnDeserialization()</code></td>
+<td>同期受信時に空席マーカー表示を更新</td>
+</tr>
+<tr>
+<td><code>OnOwnershipTransferred(VRCPlayerApi)</code></td>
+<td>着席者が退出した際に着席フラグをリセット</td>
+</tr>
+<tr>
+<td><code>InputJump(bool, UdonInputEventArgs)</code></td>
+<td>VR の A ボタン長押し降車の入力受け取り</td>
+</tr>
+<tr>
+<td><code>InputLookHorizontal(float, UdonInputEventArgs)</code></td>
+<td>右スティック左右による向き変更の入力受け取り</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mashirocustomstationgroup配布パッケージ非同梱">MashiroCustomStationGroup（配布パッケージ非同梱）</h3>
+<p>public 関数はありません。UI からの配線は不要です（<code>Start</code> 時に自動でスキャン・注入する内部連携用コンポーネント）。</p>
+<p>UI ボタンの配色規約: 通常時背景 <code>#000000</code>、選択時背景 <code>#E85900</code>、選択時テキスト <code>#FFFFFF</code>、非選択時テキスト <code>#999999</code>。タブボタンの選択色はスクリプトが自動で切り替えます。</p>
+<hr />
+<h2 id="空席マーカーのセットアップビルボードシェーダー">空席マーカーのセットアップ（ビルボードシェーダー）</h2>
+<p><code>MashiroUnlitBillboardCutout.shader</code> はシェーダー側でカメラへ自動追従するため、CPU 負荷ゼロで複数マーカーを描画できます。</p>
+<ol>
+<li><code>Create &gt; Material</code> で新規マテリアルを作成</li>
+<li>Shader を <code>MashiroTheater/UnlitBillboardCutout</code> に変更</li>
+<li><code>_MainTex</code> にアイコンテクスチャをアサイン（Sprite の場合は <code>Texture Type = Default</code> に変更）</li>
+<li><strong>Enable GPU Instancing にチェック</strong>（多数の席を 1 ドローコールで描画するため必須）</li>
+<li><code>Quad</code> GameObject に貼り付けて <code>Empty Marker</code> にアサイン</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>プロパティ</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>_MainTex</code></td>
+<td>アイコンテクスチャ</td>
+</tr>
+<tr>
+<td><code>_Color</code></td>
+<td>乗算カラー（Tint）</td>
+</tr>
+<tr>
+<td><code>_Cutoff</code></td>
+<td>アルファカットオフ閾値（既定 0.5）</td>
+</tr>
+<tr>
+<td><code>Lock Y Axis</code></td>
+<td>ON で円柱型ビルボード（Y軸固定）、OFF で球状ビルボード（常に正対）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="canvas-の配置目安">Canvas の配置目安</h2>
+<ul>
+<li><code>Render Mode = World Space</code></li>
+<li><code>StationPrefab</code> では <code>MainPanel</code> / <code>MiniPanel</code> を root 直下に置いているため、右スティックで向きを変えてもパネルは動きません。パネルを回転に追従させたい場合は <code>EnterLocation</code>（着席アンカー）の子に配置します</li>
+<li>VR を考慮して 30〜50 cm 程度の見やすいサイズを推奨</li>
+<li>ミニパネルはフルメニューより小さく、画面端に置くと邪魔になりにくい</li>
+</ul>
+<h2 id="操作フロー">操作フロー</h2>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>挙動</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Interact</td>
+<td>着席。フルメニュー自動オープン、空席マーカー消去（全員に同期）</td>
+</tr>
+<tr>
+<td>タブボタン</td>
+<td>タブ切り替え（ページはリセット）</td>
+</tr>
+<tr>
+<td>ページ ◀ / ▶</td>
+<td>スライドのページ送り。端まで行くと反対側へループ（先頭で ◀ → 最終ページ、最終で ▶ → 先頭）。PC は ← → キーでも操作可</td>
+</tr>
+<tr>
+<td>右スティック左右</td>
+<td>向き変更（VR 専用・メニュー表示中も操作可）</td>
+</tr>
+<tr>
+<td>A ボタン長押し 1 秒（VR）/ Space 長押し 1 秒（PC）</td>
+<td>降車</td>
+</tr>
+<tr>
+<td>↑ / ↓ / リセット</td>
+<td>高さ調整</td>
+</tr>
+<tr>
+<td>字幕トグル</td>
+<td>字幕の有効/無効（ローカル）。OFF→ON は前回の言語で復帰。ラベル（<code>OFF</code>/<code>JP</code>/<code>EN</code>）自動更新</td>
+</tr>
+<tr>
+<td>折りたたむ / 展開</td>
+<td>フルメニュー ⇔ ミニパネル</td>
+</tr>
+<tr>
+<td>降車時</td>
+<td>高さ・回転・タブ・ページ・字幕（OFF）をリセット、両パネル非表示</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ローカル処理の注意点">ローカル処理の注意点</h2>
+<ul>
+<li>高さ・回転は同期しないため、他プレイヤーから見たアバター位置・向きは VRChat 側のアバター同期に従います。座席自体（メッシュ・コライダー）は動きません。</li>
+<li>「他から見て少しズレた位置に体がある」程度の見た目差異は仕様上許容します。</li>
+</ul>
+<hr />
+<h2 id="mashirocustomstationgroup劇場内部向け配布パッケージ非同梱">MashiroCustomStationGroup（劇場内部向け・配布パッケージ非同梱）</h2>
+<p>複数の席プレハブを束ねるルートに付ける軽量マネージャです。<code>Start</code> 時に配下をスキャンし、椅子全体で共有する参照（字幕システム・パンフレットローダー）を各席のコンポーネントへ自動注入します。席数分の参照を Inspector で個別にアサインする手間を省くためのものです。</p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Subtitle System</code></td>
+<td>配下の <code>SubtitleDisplay</code> に注入する <code>SubtitleSystem</code>。未設定なら字幕注入はスキップ</td>
+</tr>
+<tr>
+<td><code>Pamphlet Loader</code></td>
+<td>配下の <code>MashiroPamphletViewer</code> に注入する <code>MashiroPamphletLoader</code>。未設定ならスキップ</td>
+</tr>
+<tr>
+<td><code>Target Roots</code></td>
+<td>スキャン起点の Transform 配列。空なら自身の配下を再帰スキャン。席列の中間 GameObject（<code>A</code>, <code>B</code>, …）を個別指定すると取りこぼしが少ない</td>
+</tr>
+<tr>
+<td><code>Debug Log</code></td>
+<td>注入結果の詳細をコンソールへ出力（失敗警告は常に出力）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>対象側で既に参照が設定済みの場合はそちらが優先されます</li>
+<li>このコンポーネントは任意です。参照を 1 個ずつ手動アサインする運用も従来通り可能です</li>
+<li>依存先（<code>SubtitleSystem</code> / <code>Pamphlet</code>）が存在するプロジェクトでのみコンパイルできます</li>
+</ul>
+<h2 id="ライセンス">ライセンス</h2>
+<p>このフォルダの内容は MIT License で提供します（リポジトリルートの <code>LICENSE.md</code> を参照）。</p>
+<hr />
+<p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
+<ul>
+<li>メール: <a href="mailto:contact@mashirotheater.com">contact@mashirotheater.com</a></li>
+<li>X: <a href="https://x.com/hakushiza">https://x.com/hakushiza</a></li>
+<li>Discord: <a href="https://discord.com/invite/yU2Es38sVX">https://discord.com/invite/yU2Es38sVX</a></li>
+</ul>
+
+</main>
+<footer>main@2698a7a 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
+</body>
+</html>

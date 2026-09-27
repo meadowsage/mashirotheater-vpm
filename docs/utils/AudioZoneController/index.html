@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AudioZoneController 使い方ガイド — Mashiro Small Theater</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fg: #1f1f1f; --bg: #ffffff; --muted: #666666; --line: rgba(127,127,127,.3);
+    --code-bg: rgba(127,127,127,.14); --accent: #E85900;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e6e6; --bg: #161616; --muted: #999999; }
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.75; max-width: 52rem; margin: 0 auto; padding: 1.2rem 16px 4rem;
+    color: var(--fg); background: var(--bg); overflow-wrap: anywhere;
+  }
+  a { color: var(--accent); }
+  nav { font-size: .9rem; color: var(--muted); margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; line-height: 1.4; }
+  h2 { margin-top: 2.4rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+  h3 { margin-top: 1.8rem; }
+  code { background: var(--code-bg); padding: .1rem .35rem; border-radius: .25rem; font-size: .9em; }
+  pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: .4rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; display: block; overflow-x: auto; margin: 1rem 0; }
+  th, td { text-align: left; padding: .45rem .7rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--code-bg); }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid var(--line); color: var(--muted); }
+  img { max-width: 100%; }
+  footer { margin-top: 3rem; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<nav><a href="../../">マニュアル</a> / <a href="../">Mashiro Theater Utils</a></nav>
+<main>
+<h1 id="audiozonecontroller-使い方ガイド">AudioZoneController 使い方ガイド</h1>
+<p>このフォルダには、ワールド内のボイス聞こえ方を
+<strong>拡声（Amplify）/ 防音（Soundproof）/ 外音遮断（Outside Sound Block）/ 通常（Neutral）</strong> で制御する
+<code>MashiroAudioZoneController</code> が含まれています。</p>
+<blockquote>
+<p>注意: このコンポーネントは、他の拡声・音声制御ギミックと干渉する可能性があります。</p>
+</blockquote>
+<hr />
+<h2 id="同梱ファイル">同梱ファイル</h2>
+<ul>
+<li><code>MashiroAudioZoneController.cs</code>
+<ul>
+<li>メイン制御コンポーネント</li>
+</ul>
+</li>
+<li><code>MashiroAmplifyZone.cs</code>
+<ul>
+<li>拡声エリアごとの <code>Far / Gain</code> を持つ補助コンポーネント</li>
+</ul>
+</li>
+<li><code>MashiroSoundproofZone.cs</code>
+<ul>
+<li>防音エリアごとの <code>BoxCollider</code> と滞在中インジケータ GameObject を紐付ける補助コンポーネント</li>
+</ul>
+</li>
+<li><code>AudioZoneController.prefab</code>
+<ul>
+<li><code>MashiroAudioZoneController</code> と UI（滞在者一覧パネル）、判定用 Collider をまとめた構成例プレハブ</li>
+</ul>
+</li>
+<li><code>MashiroSoundproofShell.mat</code>
+<ul>
+<li>防音エリア滞在中インジケータ用のマテリアル（<code>MashiroTheater/CubeInteriorBand</code> シェーダー）</li>
+</ul>
+</li>
+</ul>
+<p>防音エリア滞在中インジケータ用には、汎用シェーダー <code>_Common/Shaders/CubeInteriorBand.shader</code> を利用します（Cube 4 側面の指定高さに水平な帯／ボーダー模様を描く方式、Quest 互換）。</p>
+<hr />
+<h2 id="動作ルール優先順">動作ルール（優先順）</h2>
+<p><strong>自分（リスナー）から見た他プレイヤーの聞こえ方</strong>として、以下の順番で適用されます。</p>
+<ol>
+<li><strong>自分が外音遮断エリア内</strong> かつ <strong>相手が同じ外音遮断エリア外</strong>（エリア外／別の外音遮断エリア内のどちらも該当）
+<ul>
+<li><code>VoiceGain</code> に <code>Isolate Outside Gain</code> を適用（<code>VoiceDistanceFar</code> は <code>Neutral Far</code> のまま）</li>
+</ul>
+</li>
+<li>相手が <strong>Amplifyゾーン内</strong>
+<ul>
+<li>そのゾーンの <code>Override Far / Override Gain</code> を適用</li>
+</ul>
+</li>
+<li>相手が <strong>Soundproofゾーン内</strong> かつ <strong>自分が同じ防音ゾーン外</strong>
+<ul>
+<li><code>VoiceDistanceFar = 0.01</code> を適用（固定）</li>
+</ul>
+</li>
+<li>それ以外
+<ul>
+<li><code>Neutral Far / Neutral Gain</code> を適用</li>
+</ul>
+</li>
+</ol>
+<p>自分が外音遮断エリア内にいても、<strong>相手が同じ外音遮断エリア内</strong>にいる場合はルール 1 が適用されず、2 以降（拡声・防音・通常）が通常どおり判定されます。</p>
+<hr />
+<h2 id="セットアップ手順">セットアップ手順</h2>
+<h3 id="共通">共通</h3>
+<ol>
+<li>任意の GameObject に <code>MashiroAudioZoneController</code> をアタッチ</li>
+<li>必要に応じて UI テキスト参照を割り当て
+<ul>
+<li><code>playersAmplifyText</code></li>
+<li><code>playersSoundproofText</code></li>
+<li><code>lastUpdateTimeText</code></li>
+</ul>
+</li>
+</ol>
+<blockquote>
+<p><strong>判定 Collider について</strong>
+<code>MashiroAmplifyZone</code> / <code>MashiroSoundproofZone</code> は、判定に使う <code>BoxCollider</code> を <code>Zone Collider</code> フィールドで<strong>明示的に指定</strong>します（自動取得・自動添付は行いません）。</p>
+<ul>
+<li><strong>1 つの GameObject で完結させたい場合</strong>: 同じ GameObject に <code>BoxCollider</code> を置き、それを <code>Zone Collider</code> にドラッグして指定します。</li>
+<li><strong>当たり判定とインジケータ表示を別 GameObject に分けたい場合</strong>: 別 GameObject に置いた <code>BoxCollider</code> を <code>Zone Collider</code> に指定できます。コンポーネント側の GameObject には余計な Collider を持たせずに済みます。</li>
+<li><code>Zone Collider</code> が未設定のエリアは<strong>判定対象から除外</strong>され、Controller 起動時に Console へ警告が出ます。</li>
+</ul>
+</blockquote>
+<h3 id="拡声エリアの設置">拡声エリアの設置</h3>
+<ol>
+<li>拡声判定に使う <code>BoxCollider</code> を用意する（任意の GameObject）</li>
+<li><code>MashiroAmplifyZone</code> をアタッチし、<code>Zone Collider</code> に手順 1 の <code>BoxCollider</code> を指定</li>
+<li><code>MashiroAudioZoneController</code> の <strong>Amplify</strong> 配列に <code>MashiroAmplifyZone</code> を登録</li>
+</ol>
+<h3 id="防音エリアの設置">防音エリアの設置</h3>
+<ol>
+<li>防音判定に使う <code>BoxCollider</code> を用意する（任意の GameObject）</li>
+<li><code>MashiroSoundproofZone</code> をアタッチし、<code>Zone Collider</code> に手順 1 の <code>BoxCollider</code> を指定</li>
+<li>必要に応じて滞在中インジケータ GameObject を <code>MashiroSoundproofZone</code> の <code>Inside Indicator</code> に割り当て（後述）</li>
+<li><code>MashiroAudioZoneController</code> の <strong>Soundproof</strong> 配列に <code>MashiroSoundproofZone</code> を登録</li>
+</ol>
+<h3 id="外音遮断エリアの設置">外音遮断エリアの設置</h3>
+<p>「エリア内にいる間、エリア外の声を小さくして聞く」ためのエリアです。<strong>専用コンポーネントは不要</strong>で、<code>BoxCollider</code> を直接登録します。</p>
+<ol>
+<li>遮断判定に使う <code>BoxCollider</code> を用意する（任意の GameObject）</li>
+<li><code>MashiroAudioZoneController</code> の <strong>Outside Sound Block Zones</strong> 配列に、その <code>BoxCollider</code> を直接登録</li>
+<li><code>Isolate Outside Gain</code> で、エリア外の声に適用する <code>VoiceGain</code> を調整</li>
+</ol>
+<hr />
+<h2 id="inspector項目">Inspector項目</h2>
+<h3 id="amplify">Amplify</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Amplify Zones</code></td>
+<td>–</td>
+<td><code>MashiroAmplifyZone</code> の配列。各要素の <code>Override Far / Override Gain</code> が適用値になる</td>
+</tr>
+</tbody>
+</table>
+<p><code>MashiroAmplifyZone</code> 側のフィールド:</p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Zone Collider</code></td>
+<td>–</td>
+<td>拡声判定に使う <code>BoxCollider</code>（別 GameObject でも可）</td>
+</tr>
+<tr>
+<td><code>Override Far</code></td>
+<td><code>70</code></td>
+<td>このエリアで適用する <code>VoiceDistanceFar</code>（0〜1000 にクランプ）</td>
+</tr>
+<tr>
+<td><code>Override Gain</code></td>
+<td><code>15</code></td>
+<td>このエリアで適用する <code>VoiceGain</code>（0〜24 にクランプ）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="soundproof">Soundproof</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Soundproof Zones</code></td>
+<td>–</td>
+<td><code>MashiroSoundproofZone</code> の配列</td>
+</tr>
+</tbody>
+</table>
+<p><code>MashiroSoundproofZone</code> 側のフィールド:</p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Zone Collider</code></td>
+<td>–</td>
+<td>防音判定に使う <code>BoxCollider</code>（別 GameObject でも可）</td>
+</tr>
+<tr>
+<td><code>Inside Indicator</code></td>
+<td>–</td>
+<td>自分が滞在中の間だけ表示する GameObject（任意）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="outside-sound-block-zone外音遮断エリア">Outside Sound Block Zone（外音遮断エリア）</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Outside Sound Block Zones</code></td>
+<td>–</td>
+<td>外音遮断判定に使う <code>BoxCollider</code> の配列。<strong>コンポーネントではなく <code>BoxCollider</code> を直接登録</strong></td>
+</tr>
+<tr>
+<td><code>Isolate Outside Gain</code></td>
+<td><code>1</code></td>
+<td>エリア内から<strong>エリア外</strong>の声を聞くときに適用する <code>VoiceGain</code>（0〜24）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tick">Tick</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Update Interval</code></td>
+<td><code>0.2</code> 秒</td>
+<td>更新間隔（0.1〜1.0秒）。小さくするほど反映は速くなるが、更新頻度は上がる</td>
+</tr>
+</tbody>
+</table>
+<h3 id="voice-targets">Voice Targets</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Neutral Far</code></td>
+<td><code>25</code></td>
+<td>通常時の <code>VoiceDistanceFar</code>（0〜100 にクランプ）</td>
+</tr>
+<tr>
+<td><code>Neutral Gain</code></td>
+<td><code>15</code></td>
+<td>通常時の <code>VoiceGain</code>（0〜24 にクランプ）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="optional-ui">Optional UI</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>playersAmplifyText</code></td>
+<td>–</td>
+<td>拡声エリア滞在者の一覧表示</td>
+</tr>
+<tr>
+<td><code>playersSoundproofText</code></td>
+<td>–</td>
+<td>防音エリア滞在者の一覧表示</td>
+</tr>
+<tr>
+<td><code>lastUpdateTimeText</code></td>
+<td>–</td>
+<td>最終更新時刻の表示</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="防音エリア滞在中インジケータの作り方">防音エリア滞在中インジケータの作り方</h2>
+<p>ローカルプレイヤーがその防音エリア内にいる間だけ、対応する GameObject を有効化する仕組みです。判定 Collider は VR の頭抜け対策で広めに取る運用を想定しているため、視覚側は <strong>部屋の実寸に合わせた専用 GameObject</strong> を別途用意するのが推奨です。</p>
+<ol>
+<li>部屋の内寸より各方向 2〜5cm 内側に収まるサイズの Cube を作成（Z ファイト防止）</li>
+<li>Cube の <code>Box Collider</code> は削除（判定は controller 側で行うため不要）</li>
+<li>新規マテリアルを作成し、Shader を <code>MashiroTheater/CubeInteriorBand</code> に設定（汎用シェーダー、<code>_Common/Shaders/</code> 配下）</li>
+<li>マテリアルプロパティを調整
+<ul>
+<li><code>Color 1</code>: 既定 <code>#4CAF50</code>（録音スタジオ慣習の「SAFE = 緑」に合わせています。アルファで透明度も指定可）</li>
+<li><code>Color 2</code>: 既定 白（ボーダー模様の 2 色目）。<code>Color 1</code> と同じ色にすればストライプは消えて単色帯になる。アルファ 0 にすると「色 1 部分だけが見える破線」になる</li>
+<li><code>Stripe Width</code>: ストライプ 1 本の幅（メートル）。既定 0.1m (10cm)</li>
+<li><code>Stripe Angle</code>: ストライプの傾き（度、-89〜89）。既定 0（縦縞）。45 でハザードテープ風の斜め縞。帯の厚みが薄いと斜めが目立ちにくいので、明確な斜めには <code>Thickness</code> を <code>Stripe Width</code> と同程度まで増やすと良い</li>
+<li><code>Height From Floor</code>: Cube 底面（= 床面）からの帯の中心高さ（メートル）。既定 1.0m</li>
+<li><code>Thickness</code>: 帯の太さ（メートル）。既定 0.02m (2cm)</li>
+</ul>
+</li>
+<li>Cube を、対応する防音エリアの <code>MashiroSoundproofZone</code> の <code>Inside Indicator</code> フィールドにドラッグ</li>
+<li>Cube は初期状態で <strong>非アクティブ</strong> にしておく（controller が必要時に有効化）</li>
+</ol>
+<h3 id="表示-on-の安全遅延">表示 ON の安全遅延</h3>
+<p>インジケータは「<strong>自分が防音エリアに入ってから一定時間経過後</strong>」に表示が ON になります。これは、<strong>「視覚的には防音中なのに、他クライアントから見ると同期遅延でまだ防音されていない」というニセ安全状態を避ける</strong> ためです。</p>
+<ul>
+<li><strong>ON 遅延</strong>: <code>Update Interval × 2 + 0.2 秒</code>（既定 Interval 0.2s なら 0.6 秒）
+<ul>
+<li>内訳: 自分の Tick 揺らぎ ＋ ネットワーク同期遅延 ＋ 他クライアントの Tick 揺らぎ を保守的に吸収</li>
+</ul>
+</li>
+<li><strong>OFF（退出時）は即時反映</strong>
+<ul>
+<li>退出後しばらく他者からは防音状態が続くが、これは「他者には聞こえないだけ」で安全側</li>
+</ul>
+</li>
+<li>エリア境界を短時間に出入りした場合、表示は ON 確定しないまま終わる（ちらつかない）</li>
+</ul>
+<p>ラグを短くしたい場合は <code>Update Interval</code> を小さく（例: 0.1 秒）すれば、ON 遅延も自動で短く（0.4 秒）なります。</p>
+<h3 id="シェーダーの仕様">シェーダーの仕様</h3>
+<ul>
+<li>Built-in パイプライン、Quest 互換（テクスチャ・GrabPass・深度参照なし）</li>
+<li>Cube の <strong>4 側面のみ</strong> に水平な帯を描画（天面・床面には描かれない）</li>
+<li>高さ・ストライプ幅は Cube の各軸ワールドスケールから算出するため、Cube を非正方形に拡縮しても帯の位置とストライプ幅はメートル単位で安定</li>
+<li>隣接する側面のストライプは、部屋が正方形でないとコーナーでつなぎ目がずれることがあります（仕様上の制約）</li>
+<li>Unity 標準 Cube（ローカル境界 -0.5 〜 +0.5）を前提とした実装</li>
+<li><code>Cull Front</code>: 中から見たときだけ見える設定。外からも見せたい場合はシェーダーの <code>Cull Front</code> を <code>Cull Off</code> に書き換えてください</li>
+<li><code>Blend SrcAlpha OneMinusSrcAlpha</code>: 通常のアルファブレンド。色の透明度を <code>Color 1 / Color 2</code> のアルファチャンネルでそのまま制御できます</li>
+</ul>
+<hr />
+<h2 id="ui表示フォーマット">UI表示フォーマット</h2>
+<h3 id="amplify表示">Amplify表示</h3>
+<pre><code class="language-text">[エリア名 | Far : xx | Gain : yy]
+name1, name2, name3
+</code></pre>
+<h3 id="soundproof表示">Soundproof表示</h3>
+<pre><code class="language-text">[エリア名]
+name1, name2, name3
+</code></pre>
+<hr />
+<h2 id="固定仕様調整不可">固定仕様（調整不可）</h2>
+<ul>
+<li>Mute時 <code>VoiceDistanceFar</code> は <strong>0.01固定</strong></li>
+<li>書き込み差分閾値（epsilon）は <strong>0.01固定</strong></li>
+</ul>
+<hr />
+<h2 id="運用上の注意">運用上の注意</h2>
+<ul>
+<li><code>OnDisable</code> / <code>OnDestroy</code> で、対象プレイヤーの <code>Far/Gain</code> を Neutral 値に戻します。</li>
+<li>そのため、別の音声制御ギミックを同時使用している場合は、値の取り合いが起きる可能性があります。</li>
+</ul>
+<hr />
+<h2 id="api-リファレンス">API リファレンス</h2>
+<p><strong>UI へ手配線するものはありません。</strong> 3 コンポーネントとも Inspector の設定だけで動作します。</p>
+<h3 id="mashiroaudiozonecontroller">MashiroAudioZoneController</h3>
+<p>public 関数はありません。</p>
+<h3 id="mashiroamplifyzonecontroller-が読み取る内部連携用配線不要">MashiroAmplifyZone（Controller が読み取る内部連携用・配線不要）</h3>
+<table>
+<thead>
+<tr>
+<th>プロパティ</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BoxCollider Collider { get; }</code></td>
+<td>拡声判定に使う Collider（未設定なら <code>null</code>。Controller 側でスキップ）</td>
+</tr>
+<tr>
+<td><code>float OverrideFar { get; }</code></td>
+<td>適用する <code>VoiceDistanceFar</code>（0〜1000 にクランプした値）</td>
+</tr>
+<tr>
+<td><code>float OverrideGain { get; }</code></td>
+<td>適用する <code>VoiceGain</code>（0〜24 にクランプした値）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mashirosoundproofzonecontroller-が読み取る内部連携用配線不要">MashiroSoundproofZone（Controller が読み取る内部連携用・配線不要）</h3>
+<table>
+<thead>
+<tr>
+<th>プロパティ</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BoxCollider Collider { get; }</code></td>
+<td>防音判定に使う Collider（未設定なら <code>null</code>。Controller 側でスキップ）</td>
+</tr>
+<tr>
+<td><code>GameObject InsideIndicator { get; }</code></td>
+<td>自分が滞在中の間だけ表示する GameObject（未指定可）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ライセンス">ライセンス</h2>
+<ul>
+<li><code>AudioZoneController/LICENSE</code> は MIT ライセンスです。</li>
+<li>ライセンス適用範囲は、このフォルダ内のスクリプト（<code>.cs</code>）です。</li>
+</ul>
+<hr />
+<p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
+<ul>
+<li>メール: <a href="mailto:contact@mashirotheater.com">contact@mashirotheater.com</a></li>
+<li>X: <a href="https://x.com/hakushiza">https://x.com/hakushiza</a></li>
+<li>Discord: <a href="https://discord.com/invite/yU2Es38sVX">https://discord.com/invite/yU2Es38sVX</a></li>
+</ul>
+
+</main>
+<footer>main@2698a7a 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
+</body>
+</html>

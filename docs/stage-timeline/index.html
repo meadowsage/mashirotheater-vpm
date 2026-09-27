@@ -1,0 +1,1434 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StageTimelineBuilder / Manager ユーザーマニュアル — Mashiro Small Theater</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fg: #1f1f1f; --bg: #ffffff; --muted: #666666; --line: rgba(127,127,127,.3);
+    --code-bg: rgba(127,127,127,.14); --accent: #E85900;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e6e6; --bg: #161616; --muted: #999999; }
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.75; max-width: 52rem; margin: 0 auto; padding: 1.2rem 16px 4rem;
+    color: var(--fg); background: var(--bg); overflow-wrap: anywhere;
+  }
+  a { color: var(--accent); }
+  nav { font-size: .9rem; color: var(--muted); margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; line-height: 1.4; }
+  h2 { margin-top: 2.4rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+  h3 { margin-top: 1.8rem; }
+  code { background: var(--code-bg); padding: .1rem .35rem; border-radius: .25rem; font-size: .9em; }
+  pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: .4rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; display: block; overflow-x: auto; margin: 1rem 0; }
+  th, td { text-align: left; padding: .45rem .7rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--code-bg); }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid var(--line); color: var(--muted); }
+  img { max-width: 100%; }
+  footer { margin-top: 3rem; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<nav><a href="../">マニュアル</a> / <a href="./">Mashiro Theater Stage Timeline Manager</a></nav>
+<main>
+<h1 id="stagetimelinebuilder--manager-ユーザーマニュアル">StageTimelineBuilder / Manager ユーザーマニュアル</h1>
+<hr />
+<h2 id="目次">目次</h2>
+<ol>
+<li><a href="#1-%E3%81%AF%E3%81%98%E3%82%81%E3%81%AB">はじめに</a></li>
+<li><a href="#2-%E5%8B%95%E4%BD%9C%E7%92%B0%E5%A2%83">動作環境</a></li>
+<li><a href="#3-%E3%82%A4%E3%83%B3%E3%83%9D%E3%83%BC%E3%83%88%E3%81%A8%E3%82%BB%E3%83%83%E3%83%88%E3%82%A2%E3%83%83%E3%83%97">インポートとセットアップ</a></li>
+<li><a href="#4-%E5%85%AC%E6%BC%94%E3%82%92%E8%A8%AD%E5%AE%9A%E3%81%99%E3%82%8Bstagetimelineconfig">公演を設定する（StageTimelineConfig）</a>
+<ul>
+<li>4-1. <a href="#4-1-config-%E3%82%B3%E3%83%B3%E3%83%9D%E3%83%BC%E3%83%8D%E3%83%B3%E3%83%88%E3%81%AE%E4%BD%9C%E6%88%90">Config コンポーネントの作成</a></li>
+<li>4-2. <a href="#4-2-%E5%9F%BA%E6%9C%AC%E8%A8%AD%E5%AE%9A">基本設定</a></li>
+<li>4-3. <a href="#4-3-%E3%83%97%E3%83%AA%E3%82%BB%E3%83%83%E3%83%88%E3%82%92%E7%99%BB%E9%8C%B2%E3%81%99%E3%82%8B">プリセットを登録する</a></li>
+<li>4-4. <a href="#4-4-%E3%82%AD%E3%83%A3%E3%83%A9%E3%82%AF%E3%82%BF%E3%83%BC%E3%82%92%E7%99%BB%E9%8C%B2%E3%81%99%E3%82%8B">キャラクターを登録する</a></li>
+<li>4-5. <a href="#4-5-%E3%82%B7%E3%83%BC%E3%83%B3%E3%82%92%E4%BD%9C%E3%82%8B">シーンを作る</a></li>
+<li>4-6. <a href="#4-6-%E3%82%AB%E3%83%A1%E3%83%A9%E3%82%92%E8%A8%AD%E5%AE%9A%E3%81%99%E3%82%8B%E3%82%AB%E3%83%A1%E3%83%A9%E3%82%BF%E3%83%96">カメラを設定する（カメラタブ）</a></li>
+<li>4-7. <a href="#4-7-%E6%9A%97%E8%BB%A2%E3%83%9C%E3%83%83%E3%82%AF%E3%82%B9%E3%82%92%E8%A8%AD%E5%AE%9A%E3%81%99%E3%82%8B">暗転ボックスを設定する</a></li>
+</ul>
+</li>
+<li><a href="#5-%E3%82%BF%E3%82%A4%E3%83%A0%E3%83%A9%E3%82%A4%E3%83%B3%E3%82%92%E7%94%9F%E6%88%90%E3%81%99%E3%82%8B">タイムラインを生成する</a></li>
+<li><a href="#6-q-%E3%82%B7%E3%83%BC%E3%83%88-csv-%E3%82%92%E3%82%A8%E3%82%AF%E3%82%B9%E3%83%9D%E3%83%BC%E3%83%88%E3%81%99%E3%82%8B">Q シート CSV をエクスポートする</a></li>
+<li><a href="#7-stagetimelinemanager-%E3%82%92%E8%A8%AD%E5%AE%9A%E3%81%99%E3%82%8B">StageTimelineManager を設定する</a></li>
+<li><a href="#8-vrchat-%E4%B8%8A%E3%81%A7%E3%81%AE%E4%BD%BF%E3%81%84%E6%96%B9">VRChat 上での使い方</a></li>
+<li><a href="#9-%E3%83%88%E3%83%A9%E3%83%96%E3%83%AB%E3%82%B7%E3%83%A5%E3%83%BC%E3%83%86%E3%82%A3%E3%83%B3%E3%82%B0">トラブルシューティング</a></li>
+<li><a href="#10-%E3%83%A9%E3%83%B3%E3%82%BF%E3%82%A4%E3%83%A0%E6%93%8D%E4%BD%9C%E3%83%91%E3%83%8D%E3%83%AB%E3%81%AE%E9%85%8D%E7%B7%9A">ランタイム操作パネルの配線</a></li>
+<li><a href="#11-api-%E3%83%AA%E3%83%95%E3%82%A1%E3%83%AC%E3%83%B3%E3%82%B9">API リファレンス</a></li>
+</ol>
+<hr />
+<h2 id="1-はじめに">1. はじめに</h2>
+<p><strong>StageTimelineBuilder / Manager</strong> は、VRChat 上で行う演劇・ライブ・朗読劇などの公演進行を Unity Timeline で自動化するためのツールセットです。</p>
+<h3 id="できること">できること</h3>
+<ul>
+<li>公演を「シーン」単位で分割し、照明・BGM・SE・オブジェクト表示切替・アニメーション・暗転・キャラクターワープをシーンごとに設定できます</li>
+<li>Cinemachine カメラのアングルをシーンに合わせて切り替えられます</li>
+<li>Animator パラメータ（Int）・Animator トリガー・Udon イベント（<code>SendCustomEvent</code>）をシーン進行に合わせて発火できます</li>
+<li>エディタ上でシーン構成を組んでボタンを押すだけで、Unity Timeline アセットと AnimationClip を自動生成します</li>
+<li>VRChat のネットワーク機能と連携し、複数プレイヤーで同期したタイムライン再生を実現します</li>
+<li>公演中に「オーナー」権限を持つプレイヤーが再生・停止・シーン送り・シーン戻しを操作できます</li>
+<li>キャラクターへのプレイヤー登録・ワープ（テレポート）機能を内蔵しています</li>
+</ul>
+<h3 id="このマニュアルの対象読者">このマニュアルの対象読者</h3>
+<ul>
+<li>VRChat 公演の演出担当者</li>
+<li>Unity の基本操作（Inspector の設定、GameObject の配置）ができる方</li>
+</ul>
+<hr />
+<h2 id="2-動作環境">2. 動作環境</h2>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>要件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unity</td>
+<td>VRChat SDK が対応している推奨バージョン</td>
+</tr>
+<tr>
+<td>VRChat SDK (VRCSDK3)</td>
+<td>最新の安定版を推奨</td>
+</tr>
+<tr>
+<td>UdonSharp</td>
+<td>最新の安定版を推奨</td>
+</tr>
+<tr>
+<td>NoribenBeamLight</td>
+<td><strong>推奨（実質必須）</strong> ※後述</td>
+</tr>
+</tbody>
+</table>
+<h3 id="noribenbeamlight-について">NoribenBeamLight について</h3>
+<p>照明フェード機能は <code>Noriben/noribenBeamLight</code> シェーダーを適用した MeshRenderer（ビームライト）を制御対象として認識します。NoribenBeamLight を導入していない環境では、<strong>通常の Light コンポーネントのみ</strong>を制御対象にするため、ビームライトのフェードアニメーションは生成されません。</p>
+<p>公演でビームライトを使用する場合は、NoribenBeamLight を事前にプロジェクトへインポートしてください。</p>
+<hr />
+<h2 id="3-インポートとセットアップ">3. インポートとセットアップ</h2>
+<h3 id="手順">手順</h3>
+<ol>
+<li>配布されている UnityPackage（<code>.unitypackage</code>）をダウンロードします</li>
+<li>Unity エディタのメニューバーから <code>Assets &gt; Import Package &gt; Custom Package...</code> を選び、ファイルを選択します</li>
+<li>インポート内容を確認して <strong>Import</strong> をクリックします</li>
+<li>インポートが完了すると、プロジェクトに以下が追加されます：
+<ul>
+<li><code>StageTimelineManager/</code> フォルダ（スクリプト・Prefab 一式）</li>
+</ul>
+</li>
+</ol>
+<h3 id="シーンへの-prefab-配置">シーンへの Prefab 配置</h3>
+<ol>
+<li>プロジェクトウィンドウで <code>StageTimelineManager/StageTimelineManager.prefab</code> を探します</li>
+<li>Hierarchy ウィンドウにドラッグ＆ドロップして、シーンに配置します</li>
+<li>配置された Prefab の中に、操作 UI パネルが含まれています。位置はシーンに合わせて自由に調整してください</li>
+</ol>
+<h3 id="playabledirector-の準備">PlayableDirector の準備</h3>
+<p>タイムライン生成には、シーン上に <strong>PlayableDirector コンポーネントを持つ GameObject</strong> が必要です。</p>
+<ol>
+<li>空の GameObject を作成し、名前を <code>TimelineDirector</code>（任意）などとします</li>
+<li><code>Add Component &gt; Playables &gt; Playable Director</code> を追加します</li>
+<li>この時点では Timeline アセットを割り当てなくて構いません。生成時に自動で割り当てられます</li>
+</ol>
+<hr />
+<h2 id="4-公演を設定するstagetimelineconfig">4. 公演を設定する（StageTimelineConfig）</h2>
+<p>公演の全内容は <strong>StageTimelineConfig</strong> コンポーネントに設定します。このコンポーネントは専用のエディタウィンドウ（Stage Timeline Builder）から操作します。</p>
+<p>エディタウィンドウは Unity メニュー <code>Tools &gt; Mashiro Theater &gt; Stage Timeline Builder</code> から開けます。</p>
+<h3 id="4-1-config-コンポーネントの作成">4-1. Config コンポーネントの作成</h3>
+<ol>
+<li><code>Stage Timeline Builder</code> ウィンドウを開きます</li>
+<li><strong>設定</strong> タブが表示されます</li>
+<li>ウィンドウを開いた時点で、アクティブシーン内の既存 <code>StageTimelineConfig</code> を自動で検索します。見つかった場合はそのまま読み込まれます</li>
+<li>見つからない場合は、<strong>「新規作成」</strong> ボタンをクリックします。<code>StageTimelineConfig - {タイトル}</code> という名前の GameObject が作られ、<code>StageTimelineConfig</code> コンポーネントが追加されます（作成直後はタイトルが空のため <code>StageTimelineConfig</code> という名前になります）</li>
+<li>シーン内の別の場所に既に config があるかもう一度確認したい場合は、<strong>「シーンから読み込み」</strong> ボタンで再検索できます</li>
+</ol>
+<blockquote>
+<p><strong>StageTimelineManager との自動連携</strong>: 「新規作成」時にシーン内の <code>StageTimelineManager</code> を検索し、見つかった場合は次を自動で行います。</p>
+<ul>
+<li>Config の GameObject を <strong>Manager 直下</strong> に配置します</li>
+<li><strong>StageTimelineManager</strong> を Config に自動登録します</li>
+<li>Manager 配下の <strong>PlayableDirector</strong> を検索し、見つかれば自動登録します</li>
+<li>Manager 配下で、名前に「暗転用オブジェクト」「暗転中ガイド」を含む GameObject を、それぞれ <strong>暗転用オブジェクト / 暗転中ガイド</strong> のリストへ自動登録します</li>
+</ul>
+<p><strong>二重作成防止</strong>: 「新規作成」ボタンを押した時点でもシーン全体を再走査し、既存があれば新規作成をキャンセルしてそちらを読み込みます。<br />
+<strong>GameObject 名と「タイトル」の同期</strong>: 「タイトル」フィールドを編集すると、GameObject 名も自動で <code>StageTimelineConfig - {タイトル}</code> に追従してリネームされます（ユーザーが手動で別名にリネームした場合は追従を停止します）。<br />
+<strong>補足</strong>: 既存の <code>StageTimelineConfig</code> を別シーンから持ってきたい場合などは、「StageTimelineConfig」欄に直接ドラッグ＆ドロップで指定することもできます。</p>
+</blockquote>
+<h3 id="4-2-基本設定">4-2. 基本設定</h3>
+<p><strong>設定</strong> タブの各フィールドを入力します。</p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>タイトル</strong>（作品情報）</td>
+<td>公演タイトル。生成アセットのファイル名の接頭辞と、出力先サブフォルダ名になります</td>
+</tr>
+<tr>
+<td><strong>標準シーン尺 (秒)</strong>（作品情報）</td>
+<td>各シーンの標準の長さ（秒）。シーンごとに個別設定がない場合にこの値が使われます（最小 0.1 秒）</td>
+</tr>
+<tr>
+<td><strong>GeneratedBaseFolder</strong>（生成・出力）</td>
+<td>生成アセットの出力先フォルダ（<code>Assets</code> 配下のパスを入力）。「フォルダ選択」ボタンからフォルダ選択ダイアログを開けます</td>
+</tr>
+<tr>
+<td><strong>PlayableDirector</strong>（シーン連携）</td>
+<td>前手順で用意した PlayableDirector を割り当てます</td>
+</tr>
+<tr>
+<td><strong>StageTimelineManager</strong>（シーン連携）</td>
+<td>シーンに配置した StageTimelineManager Prefab を割り当てます（任意。割り当てるとタイムライン生成時に自動で設定が書き込まれます）</td>
+</tr>
+<tr>
+<td><strong>CinemachineBrain</strong>（ステージカメラ）</td>
+<td>Cinemachine の <code>CinemachineBrain</code> コンポーネントを持つ GameObject。<strong>カメラ機能を使う場合は必須</strong>です（未割り当てのままだとカメラトラックの生成がスキップされ、Console に Warning が出ます）。カメラを使わない場合は空欄で構いません</td>
+</tr>
+<tr>
+<td><strong>暗転用オブジェクト / 暗転中ガイド</strong>（暗転）</td>
+<td><a href="#4-7-%E6%9A%97%E8%BB%A2%E3%83%9C%E3%83%83%E3%82%AF%E3%82%B9%E3%82%92%E8%A8%AD%E5%AE%9A%E3%81%99%E3%82%8B">4-7. 暗転ボックスを設定する</a> を参照</td>
+</tr>
+<tr>
+<td><strong>マーカーPrefab</strong>（ワープ可視化）</td>
+<td>ワープ位置確認用のマーカー Prefab（任意）。タイムライン生成時にキャラクター人数分のインスタンスが自動生成され、ワープのタイミングで表示・移動します</td>
+</tr>
+</tbody>
+</table>
+<h4 id="表示オプション">表示オプション</h4>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>高度な機能を表示</strong></td>
+<td>ON にすると、Animator パラメータなどの高度な機能 UI を表示します。OFF でも既存データは保持されます。Animator パラメータを使う場合は ON にしてください</td>
+</tr>
+</tbody>
+</table>
+<h3 id="4-3-プリセットを登録する">4-3. プリセットを登録する</h3>
+<p><strong>プリセット</strong> タブでは、複数のシーンにわたって繰り返し使う照明・オブジェクト・アニメーション・BGM・SE をまとめて登録できます。</p>
+<p>プリセットを使うメリット：</p>
+<ul>
+<li>各シーンのエントリでは、登録済みプリセットを<strong>プルダウンから選ぶだけ</strong>で参照できます（識別 ID は内部で自動採番されるため、入力・管理は不要です）</li>
+<li>実際の GameObject や AudioSource の差し替えが必要になった場合、プリセット側を1か所変えるだけで全シーンに反映されます</li>
+</ul>
+<p>各プリセットの下部にある <strong>「削除」</strong> ボタンでプリセットを削除できます。照明・BGM・SE には <strong>「デフォルト設定を反映」</strong> ボタンがあり、そのプリセットを参照している全シーンの「デフォルト」指定エントリへ、プリセットの現在値を一括反映します。</p>
+<hr />
+<h4 id="照明プリセットlight-presets">照明プリセット（Light Presets）</h4>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>表示名</strong></td>
+<td>エディタ上での表示名。空欄のまま Light Root を割り当てると、そのオブジェクト名が自動で入ります</td>
+</tr>
+<tr>
+<td><strong>Light Root</strong></td>
+<td>照明の親 GameObject。子に <code>Light</code> コンポーネントや NoribenBeamLight の MeshRenderer を含む GameObject を指定します</td>
+</tr>
+<tr>
+<td><strong>Default Intensity</strong></td>
+<td>照明のデフォルト輝度。シーン側で「デフォルト」を選んだときに使われます</td>
+</tr>
+<tr>
+<td><strong>Default Color</strong></td>
+<td>照明のデフォルト色</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Light Root の構成について</strong>: Light Root 以下を子孫方向に検索し、<code>Light</code> コンポーネントおよび <code>Noriben/noribenBeamLight</code> シェーダーを持つ MeshRenderer を自動で収集します。</p>
+</blockquote>
+<blockquote>
+<p><strong>「LightGroup をスキャン」ボタン</strong>: 「＋ 照明を追加」ボタンの隣にあります。アクティブシーンを走査し、まだ照明プリセットに登録されていない（Light Root として参照されていない）<code>MashiroLightGroup</code> を見つけて、まとめて照明プリセットへ追加します。追加時は <strong>表示名にオブジェクト名</strong>、<strong>Default Color に <code>MashiroLightGroup</code> の初期色</strong> を自動で取り込みます。</p>
+</blockquote>
+<hr />
+<h4 id="オブジェクト切替プリセットtoggle-presets">オブジェクト切替プリセット（Toggle Presets）</h4>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>表示名</strong></td>
+<td>エディタ上での表示名</td>
+</tr>
+<tr>
+<td><strong>Target</strong></td>
+<td>表示/非表示を切り替える GameObject</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h4 id="アニメーションプリセットobject-animation-presets">アニメーションプリセット（Object Animation Presets）</h4>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>表示名</strong></td>
+<td>エディタ上での表示名</td>
+</tr>
+<tr>
+<td><strong>Target</strong></td>
+<td>Animator を持つ GameObject</td>
+</tr>
+<tr>
+<td><strong>Clip</strong></td>
+<td>再生する AnimationClip</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h4 id="bgm-プリセットbgm-presets">BGM プリセット（BGM Presets）</h4>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>表示名</strong></td>
+<td>エディタ上での表示名</td>
+</tr>
+<tr>
+<td><strong>Source</strong></td>
+<td>音源となる AudioSource</td>
+</tr>
+<tr>
+<td><strong>Default Volume</strong></td>
+<td>デフォルト音量（0〜1）。シーン側で「デフォルト」を選んだときに使われます</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h4 id="se-プリセットse-presets">SE プリセット（SE Presets）</h4>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>表示名</strong></td>
+<td>エディタ上での表示名</td>
+</tr>
+<tr>
+<td><strong>Source</strong></td>
+<td>音源となる AudioSource</td>
+</tr>
+<tr>
+<td><strong>Default Volume</strong></td>
+<td>デフォルト音量（0〜1）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>カメラのアングル（カメラプリセット）</strong> は <strong>カメラ</strong> タブで登録します。<a href="#4-6-%E3%82%AB%E3%83%A1%E3%83%A9%E3%82%92%E8%A8%AD%E5%AE%9A%E3%81%99%E3%82%8B%E3%82%AB%E3%83%A1%E3%83%A9%E3%82%BF%E3%83%96">4-6. カメラを設定する（カメラタブ）</a> を参照してください。</p>
+</blockquote>
+<hr />
+<h4 id="animator-パラメータプリセットanimator-parameter-presets">Animator パラメータプリセット（Animator Parameter Presets）</h4>
+<blockquote>
+<p>4-2 の「<strong>高度な機能を表示</strong>」が ON のときに限りこのセクションが表示されます。</p>
+</blockquote>
+<p>AnimatorController の Int パラメータ（State Machine の遷移条件などに使うもの）をシーンから操作するためのプリセットです。</p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>表示名</strong></td>
+<td>エディタ上での表示名</td>
+</tr>
+<tr>
+<td><strong>Target Animator</strong></td>
+<td>操作対象の Animator</td>
+</tr>
+<tr>
+<td><strong>Parameter Name (Int)</strong></td>
+<td>AnimatorController 側で定義されている Int パラメータ名</td>
+</tr>
+<tr>
+<td><strong>値の選択肢 (Int → 名前)</strong></td>
+<td>シーン側のプルダウンに表示する <code>(Int 値, 名前)</code> のペア一覧。<code>＋ 値を追加</code> で行を追加、<code>−</code> で削除します</td>
+</tr>
+</tbody>
+</table>
+<h5 id="値の選択肢について">値の選択肢について</h5>
+<p>「値の選択肢」リストは「<strong>この AnimatorController が取りうる State 番号にユーザー向けの名前を付けて並べておくもの</strong>」です。シーン側エントリはこの行を ID 参照するため、以下の挙動になります。</p>
+<ul>
+<li><strong>名前を変更</strong>: シーン側のプルダウン表示が自動で追従します（再選択不要）</li>
+<li><strong>Int 値を変更</strong>（例: <code>1=Walk</code> を <code>2=Walk</code> に変更）: その「Walk」を選んでいた全シーンが<strong>新しい Int 値 (2) に自動追従</strong>します。タイムラインを再生成すれば Animator には 2 が送られます</li>
+<li><strong>行を削除</strong>: その値を選んでいたシーンは「<strong>[参照切れ — 再選択してください]</strong>」と表示されます。再選択せずにタイムライン生成するとそのエントリはスキップされ Console に Warning が出ます</li>
+<li><strong>同じ Int を複数行に登録</strong>: プリセット編集 UI に Warning が表示されます（シーン側プルダウンは先頭の名前で統一表示されます）</li>
+</ul>
+<blockquote>
+<p><strong>既存データからの移行</strong>: 旧データ（値の選択肢機能の追加前に作成されたシーン）でも、シーン編集タブを開いた時点で <code>intValue</code> から自動的に該当行を引き当てて参照を作成します。シーン編集タブを一度開くだけで移行が完了します。</p>
+</blockquote>
+<hr />
+<h4 id="animator-トリガープリセットanimator-trigger-presets">Animator トリガープリセット（Animator Trigger Presets）</h4>
+<blockquote>
+<p>4-2 の「<strong>高度な機能を表示</strong>」が ON のときに限りこのセクションが表示されます。</p>
+</blockquote>
+<p>AnimatorController の Trigger パラメータ（<code>SetTrigger</code>）をシーンから送るためのプリセットです。1 つの Animator に対して、送れる Trigger を一覧登録しておきます。</p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>表示名</strong></td>
+<td>エディタ上での表示名</td>
+</tr>
+<tr>
+<td><strong>Animator</strong></td>
+<td>操作対象の Animator</td>
+</tr>
+<tr>
+<td><strong>送れる Trigger 一覧</strong></td>
+<td><code>Trigger 名</code> と <code>表示名</code> のペア一覧。シーン側はこの行をプルダウンで選択します</td>
+</tr>
+</tbody>
+</table>
+<p>登録手順・生成時のチェック内容・可視化トラックの詳細は <a href="Builder/"><code>Builder/README.md</code></a> を参照してください。</p>
+<hr />
+<h4 id="udon-イベントプリセットudon-event-presets">Udon イベントプリセット（Udon Event Presets）</h4>
+<blockquote>
+<p>4-2 の「<strong>高度な機能を表示</strong>」が ON のときに限りこのセクションが表示されます。</p>
+</blockquote>
+<p>シーンの進行に合わせて <code>UdonSharpBehaviour</code> の public・引数なしメソッドを <code>SendCustomEvent</code> で呼ぶためのプリセットです。</p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>表示名</strong></td>
+<td>エディタ上での表示名</td>
+</tr>
+<tr>
+<td><strong>対象 Udon</strong></td>
+<td>送信先の <code>UdonSharpBehaviour</code></td>
+</tr>
+<tr>
+<td><strong>呼べるイベント一覧</strong></td>
+<td><code>関数名</code> / <code>表示名</code> / <code>Ownerのみ</code> の一覧。シーン側はこの行をプルダウンで選択します</td>
+</tr>
+</tbody>
+</table>
+<p><code>Ownerのみ</code> の使い分け、生成時のチェック内容などの詳細は <a href="Builder/"><code>Builder/README.md</code></a> を参照してください。</p>
+<hr />
+<h3 id="4-4-キャラクターを登録する">4-4. キャラクターを登録する</h3>
+<p><strong>プリセット</strong> タブの「キャラクター」セクションでキャラクターの一覧を登録します。</p>
+<p><strong>「＋ キャラクターを追加」</strong> ボタンで行を増やし、テキスト欄にキャラクター名を入力します。この名前が VRChat 上の登録 UI に表示されます。行の <strong>「−」</strong> ボタンで削除できます。</p>
+<p>登録したキャラクターは、シーンの <a href="#%E3%83%AF%E3%83%BC%E3%83%97warp">ワープ（Warp）</a> 設定で使用します。</p>
+<hr />
+<h3 id="4-5-シーンを作る">4-5. シーンを作る</h3>
+<p><strong>シーン一覧</strong> タブで各シーンを追加・編集します。</p>
+<p>タブ上部のツールバーでは次を切り替えられます。</p>
+<ul>
+<li><strong>閲覧モード ON / OFF</strong>: ON にすると全シーンが読み取り専用の一覧表示になり、誤編集を防げます</li>
+<li><strong>表示フィルタ</strong>: 「オブジェクト / アニメ / 照明 / BGM / SE / 暗転 / ワープ」（高度な機能が ON のときは「Anim Param / Anim Trigger / Udon Event」も）のボタンで、編集欄に出す種別を絞り込めます。「全選択」「全解除」で一括切替できます</li>
+</ul>
+<h4 id="効果の指定モデル重要">効果の指定モデル（重要）</h4>
+<p>各シーンの編集欄は <strong>「追加」セクション</strong> と <strong>「現在の演出」セクション</strong> の 2 部構成です。</p>
+<ul>
+<li><strong>追加セクション</strong>: そのシーンで<strong>新しく始める</strong>効果を登録します。種別ごとに <strong>「＋ プリセット選択」</strong>（登録済みプリセットから選ぶ）と <strong>「＋ 自由指定」</strong>（対象を直接割り当てる）の 2 つのボタンがあります。ここで作られるのは常に<strong>開始側</strong>（オブジェクトの表示 / アニメーションの再生 / 照明・BGM のフェードイン）です</li>
+<li><strong>現在の演出セクション</strong>: 前のシーンまでに始まって<strong>まだ続いている</strong>効果が自動で一覧表示されます。各行のプルダウンで、そのシーンでの扱い（維持 / 終了 / 変更 など）を指示します</li>
+</ul>
+<p>つまり「いつ消すか」「いつ変えるか」は、開始したシーンではなく<strong>終わらせたいシーンの「現在の演出」で指示</strong>します。プリセットを使うかどうかは追加時のボタンで決まり、その後は対象欄がプルダウン表示（プリセット）かオブジェクト欄（自由指定）かで区別されます。</p>
+<h4 id="シーン共通設定">シーン共通設定</h4>
+<p>各シーンには以下の共通設定があります。</p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>シーン名</strong></td>
+<td>UI に表示されるシーン名（例:「第1幕 オープニング」）</td>
+</tr>
+<tr>
+<td><strong>キッカケ</strong></td>
+<td>次のシーンへのキューテキスト。操作パネルの「次のキュー」欄に表示されます</td>
+</tr>
+<tr>
+<td><strong>次のシーンを統合</strong></td>
+<td>ON にすると、このシーンが終わったとき停止せず自動で次のシーンへ進みます。統合されたシーンは Builder 上「シーン 2-2」のように表示され、Q シートでは 1 行にまとめられます</td>
+</tr>
+<tr>
+<td><strong>秒数を指定</strong></td>
+<td>ON にすると、このシーンだけ独自の長さを指定できます</td>
+</tr>
+<tr>
+<td><strong>シーン尺 (秒)</strong></td>
+<td>「秒数を指定」が ON の場合のシーン長さ（秒）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h4 id="オブジェクト表示切替toggle">オブジェクト表示切替（Toggle）</h4>
+<p>指定した GameObject を表示・非表示にします。</p>
+<p><strong>追加（表示を始める）</strong></p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>対象</strong> / <strong>対象オブジェクト</strong></td>
+<td>「＋ プリセット選択」ならプリセットのプルダウン、「＋ 自由指定」なら GameObject 欄</td>
+</tr>
+<tr>
+<td><strong>出現タイミング</strong></td>
+<td><code>最初</code>（シーン開始時）または <code>最後</code>（シーン終了時）</td>
+</tr>
+<tr>
+<td><strong>遅延(秒)</strong></td>
+<td>タイミングからの遅延（「最初」のときのみ有効）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>現在の演出（表示を終える）</strong></p>
+<p>有効なオブジェクトの行で、プルダウンから <code>維持</code> / <code>OFF</code> を選びます。<code>OFF</code> を選ぶと <code>最初</code> / <code>最後</code> のタイミングと <strong>遅延(秒)</strong> を指定できます（遅延は「最初」のときのみ有効）。</p>
+<hr />
+<h4 id="オブジェクトアニメーションobject-animation">オブジェクトアニメーション（Object Animation）</h4>
+<p>指定した Animator に AnimationClip を再生させます。</p>
+<p><strong>追加（再生を始める）</strong></p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>対象</strong></td>
+<td>プリセットのプルダウン、または Animator を持つ GameObject と AnimationClip の直接指定</td>
+</tr>
+<tr>
+<td><strong>遅延(秒)</strong></td>
+<td>シーン開始から再生開始までの遅延</td>
+</tr>
+<tr>
+<td><strong>継続</strong></td>
+<td><code>維持</code> は次の終了指示またはタイムライン末尾まで再生を継続。<code>単発</code> はそのシーンのみ再生し、次のシーン開始時に自動停止します</td>
+</tr>
+</tbody>
+</table>
+<p><strong>現在の演出（再生を終える）</strong></p>
+<p>有効なアニメーションの行で、プルダウンから <code>維持</code> / <code>終了</code> を選びます。<code>終了</code> を選ぶと <code>最初</code> / <code>最後</code> のタイミングと <strong>遅延(秒)</strong> を指定できます（遅延は「最初」のときのみ有効）。</p>
+<blockquote>
+<p><strong>単発再生について</strong>: 「効果音的に1度だけ再生し、次のシーンに持ち越したくない」アニメーションには <code>単発</code> を選択してください。明示的な終了指示は不要になります。</p>
+</blockquote>
+<hr />
+<h4 id="照明フェードlight-fade">照明フェード（Light Fade）</h4>
+<p>指定した照明を、フェードさせながら輝度・色を変化させます。</p>
+<p><strong>追加（フェードインさせる）</strong></p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>対象</strong> / <strong>Light Root</strong></td>
+<td>プリセットのプルダウン、または照明の親 GameObject</td>
+</tr>
+<tr>
+<td><strong>Intensity</strong></td>
+<td>フェード後の目標輝度</td>
+</tr>
+<tr>
+<td><strong>Color</strong></td>
+<td>フェード後の目標色</td>
+</tr>
+<tr>
+<td><strong>フェード秒数</strong></td>
+<td>フェードにかかる時間（秒）</td>
+</tr>
+<tr>
+<td><strong>遅延(秒)</strong></td>
+<td>シーン開始からフェード開始までの遅延（秒）</td>
+</tr>
+</tbody>
+</table>
+<p>プリセットを選び直すと、Intensity / Color はそのプリセットのデフォルト値で上書きされます。</p>
+<p><strong>現在の演出（変える・消す）</strong></p>
+<p>有効な照明の行で、プルダウンから次を選びます。</p>
+<table>
+<thead>
+<tr>
+<th>選択肢</th>
+<th>挙動</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>維持</strong></td>
+<td>前のシーンの状態をそのまま継続</td>
+</tr>
+<tr>
+<td><strong>変更</strong></td>
+<td>このシーンで Intensity / Color / フェード秒数 / 遅延(秒) を指定して変化させる</td>
+</tr>
+<tr>
+<td><strong>デフォルト</strong></td>
+<td>プリセットのデフォルト輝度・色へ戻す（プリセット参照のエントリのみ表示）。値はプリセット側の「デフォルト設定を反映」ボタンで一括更新できます</td>
+</tr>
+<tr>
+<td><strong>フェードアウト</strong></td>
+<td>輝度 0 まで落とす（色指定は無視されます）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>遅延の下限</strong>: フェードイン / 変更の発火は、シーン境界の 1 フレームで前シーンに新しい光が混ざるのを防ぐため、遅延 0 を指定した場合でもシーン開始から最低 0.1 秒後になります。</p>
+</blockquote>
+<hr />
+<h4 id="bgm">BGM</h4>
+<p>指定した AudioSource の音量・ピッチをフェードさせます。</p>
+<p><strong>追加（フェードインさせる）</strong></p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>AudioSource</strong></td>
+<td>プリセットのプルダウン、または AudioSource の直接指定</td>
+</tr>
+<tr>
+<td><strong>音量</strong></td>
+<td>目標音量（0〜1）</td>
+</tr>
+<tr>
+<td><strong>フェード秒数</strong></td>
+<td>フェードにかかる時間（秒）</td>
+</tr>
+<tr>
+<td><strong>遅延(秒)</strong></td>
+<td>シーン開始からフェード開始までの遅延（秒）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>現在の演出（変える・消す）</strong></p>
+<p>有効な BGM の行で、プルダウンから <code>維持</code> / <code>変更</code> / <code>デフォルト</code>（プリセット参照のみ） / <code>フェードアウト</code> を選びます。<code>変更</code> では音量・ピッチ・フェード秒数を指定できます。</p>
+<blockquote>
+<p><strong>再生の仕組み</strong>: BGM は AudioSource を有効化したうえで <code>PlayOnAwake</code> で発火させます。タイムライン生成時に対象 AudioSource の <code>Play On Awake</code> を自動的に ON へ揃えるため、初回の有効化でも確実に再生が始まります。</p>
+</blockquote>
+<hr />
+<h4 id="se">SE</h4>
+<p>指定した AudioSource を1回再生します。「現在の演出」には現れません（開始のみの効果です）。</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>AudioSource</strong></td>
+<td>プリセットのプルダウン、または AudioSource の直接指定</td>
+</tr>
+<tr>
+<td><strong>音量</strong></td>
+<td>再生音量（0〜1）</td>
+</tr>
+<tr>
+<td><strong>遅延(秒)</strong></td>
+<td>シーン開始からの遅延（秒）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>同じ SE を1シーン内で複数回鳴らす</strong>: 同一の AudioSource を指す SE エントリを複数追加し、それぞれ異なる <strong>遅延(秒)</strong> を設定してください。後続の再生開始時に直前の活性区間を切り詰めて再トリガするため、間隔がクリップ長より短い場合は前の音が途中で途切れます。</p>
+</blockquote>
+<hr />
+<h4 id="animator-パラメータanimator-parameter">Animator パラメータ（Animator Parameter）</h4>
+<blockquote>
+<p>4-2 の「<strong>高度な機能を表示</strong>」が ON のときに限り、シーン内に追加ボタンが表示されます。OFF にしても既存エントリのデータは破棄されません。</p>
+</blockquote>
+<p>シーン開始時に、指定した Animator の Int パラメータに値をセットします。AnimatorController 側のステート遷移トリガに使う想定です。</p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Binding Mode</strong></td>
+<td><code>Direct</code>（直接指定）または <code>Preset</code>（プリセット参照）。<code>＋ プリセット選択</code> ボタンで作成すると Preset、<code>＋ 自由指定</code> ボタンで作成すると Direct になります</td>
+</tr>
+<tr>
+<td><strong>Preset</strong></td>
+<td>参照するプリセット（Preset の場合）。プリセット側の Animator / Parameter Name が自動で使われます</td>
+</tr>
+<tr>
+<td><strong>Animator</strong></td>
+<td>操作対象の Animator（Direct の場合）</td>
+</tr>
+<tr>
+<td><strong>パラメータ名</strong></td>
+<td>Int パラメータ名（Direct の場合）</td>
+</tr>
+<tr>
+<td><strong>値</strong></td>
+<td>設定する Int 値。<strong>Preset の場合はプリセットの「値の選択肢」からプルダウンで選択</strong>、Direct の場合は数値入力欄になります</td>
+</tr>
+<tr>
+<td><strong>遅延 (秒)</strong></td>
+<td>シーン開始から値を適用するまでの遅延秒数</td>
+</tr>
+</tbody>
+</table>
+<h5 id="動作について">動作について</h5>
+<ul>
+<li><strong>値の適用タイミング</strong>: シーン開始時刻に「遅延 (秒)」を加えた時点で、対象 Animator の指定パラメータに <code>SetInteger</code> 相当の値が反映されます</li>
+<li><strong>シーン頭の安全マージン</strong>: ネットワーク同期のずれを吸収するため、内部的に最低限のリードタイムが加算されます（遅延 0 でも数フレームの猶予あり）</li>
+<li><strong>参照切れ時の挙動</strong>: Preset モードで参照していた「値の選択肢」が消えている、または別プリセットに切り替えた直後でその ID が見つからない場合、シーン編集 UI には警告 HelpBox が表示され、タイムライン生成時にはそのエントリだけスキップ + Console Warning となります。<strong>安全側に倒すため古い Int 値を送り続けることはしません</strong></li>
+<li><strong>可視化トラック</strong>: タイムライン生成時、Timeline 上に <code>Animator Params</code> グループが作成され、各パラメータの値変化を区間クリップとして可視化します（muted なので再生には影響しません）。クリップ名は値の名前（例: <code>Walk (= 1)</code>）になります</li>
+</ul>
+<hr />
+<h4 id="暗転blackout">暗転（Blackout）</h4>
+<p>暗転用のボックスをフェードイン/フェードアウトさせます。追加セクションで登録するのは暗転（フェードイン）です。明転は、暗転が続いているシーンの「現在の演出」で <code>暗転</code> の行のプルダウンから <code>解除</code> を選んで指示します。</p>
+<p>暗転・解除のいずれも指定できる項目は同じです。</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>フェード秒数</strong></td>
+<td>フェードにかかる時間（秒）</td>
+</tr>
+<tr>
+<td><strong>遅延(秒)</strong></td>
+<td>シーン開始から暗転開始/解除までの遅延（秒）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>遅延の下限</strong>: 暗転・明転の発火は、シーン境界の 1 フレームで前シーンに暗転が漏れるのを防ぐため、遅延 0 を指定した場合でもシーン開始から最低 0.1 秒後になります。</p>
+</blockquote>
+<p>暗転に使用するオブジェクトは <a href="#4-7-%E6%9A%97%E8%BB%A2%E3%83%9C%E3%83%83%E3%82%AF%E3%82%B9%E3%82%92%E8%A8%AD%E5%AE%9A%E3%81%99%E3%82%8B">4-7. 暗転ボックスを設定する</a> で設定します。</p>
+<hr />
+<h4 id="ワープwarp">ワープ（Warp）</h4>
+<p>登録されたキャラクターを担当するプレイヤーを、指定した場所へテレポートします。</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>キャラクター</strong></td>
+<td>ワープ対象のキャラクター（4-4 で登録したリストから選択）</td>
+</tr>
+<tr>
+<td><strong>タイミング</strong></td>
+<td><code>最初</code>（シーン開始時）または <code>最後</code>（シーン終了時）</td>
+</tr>
+<tr>
+<td><strong>遅延(秒)</strong></td>
+<td>タイミングからの遅延（秒）。「最初」のときのみ有効</td>
+</tr>
+<tr>
+<td><strong>ワープ先Transform</strong></td>
+<td>テレポート先の Transform。位置と Y 軸回転が使用されます。<strong>「新規作成」</strong> ボタンを押すと、Gizmo 付きのワープポイントを自動生成して割り当てます</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>向きの Gizmo</strong>: ワープ先に <code>MashiroWarpPointGizmo</code>（編集時専用）が付与され、Scene ビューに
+位置（小さな円）とワープ時の向き（Y 軸回転＝矢印）が表示されます。Transform を回すと矢印の向きが
+変わるので、ワープ後にプレイヤーが向く方向を確認しながら調整できます。</p>
+<ul>
+<li><strong>付与/除去の基準</strong>: Builder ウィンドウを開いている間、<strong>シーン内のどれかのワープでワープ先として
+使われている transform には自動付与</strong>、<strong>どこのワープにも使われていない Gizmo は自動除去</strong>されます
+（作成方法は問いません）。付け忘れ・消し漏れが起きないよう一括で整合します。</li>
+<li>実行時には影響しません。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p><strong>動作条件</strong>: 対象キャラクターに誰かが登録されている場合のみ、テレポートが発動します。<br />
+再生セッションをまたいで同じワープが二重発動することはありません（セッション ID で管理）。</p>
+</blockquote>
+<hr />
+<h3 id="4-6-カメラを設定するカメラタブ">4-6. カメラを設定する（カメラタブ）</h3>
+<p>シーン切替に合わせて Cinemachine カメラ（Cinemachine 2.x の <code>CinemachineVirtualCamera</code>）のアングルを切り替えます。<strong>カメラ</strong> タブは「アングル」と「シーン別カメラワーク」の 2 セクションで構成されます。</p>
+<p>カメラを使う場合は、<strong>設定</strong> タブの <strong>CinemachineBrain</strong> の割り当てが必須です（未割り当てだとカメラトラックは生成されません）。</p>
+<h4 id="アングルカメラプリセット">アングル（カメラプリセット）</h4>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>表示名</strong></td>
+<td>エディタ上での表示名。空欄のまま Virtual Camera を割り当てると、そのオブジェクト名が自動で入ります</td>
+</tr>
+<tr>
+<td><strong>Virtual Camera</strong></td>
+<td><code>CinemachineVirtualCamera</code> コンポーネントを持つ GameObject</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Priority は自動制御されます（非アクティブ = 0 / アクティブ = 20）。FOV は各 Virtual Camera の <code>m_Lens.FieldOfView</code> の値がそのまま使われます。画角を変えたい場合は vcam 自体を調整してください。</p>
+</blockquote>
+<h4 id="シーン別カメラワーク">シーン別カメラワーク</h4>
+<p>各シーンに設定できる項目は次の 3 つです（シーンの追加・並び替えや他の効果の編集は <strong>シーン一覧</strong> タブで行います）。</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>カメラ</strong></td>
+<td>「アングル」で登録したカメラをプルダウンから選択します</td>
+</tr>
+<tr>
+<td><strong>切替タイミング</strong></td>
+<td><code>最初</code>（シーン開始時）または <code>最後</code>（シーン終了時）</td>
+</tr>
+<tr>
+<td><strong>遅延(秒)</strong></td>
+<td>タイミングからの遅延秒数（「最初」のときのみ有効）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>アクティブカメラの維持</strong>: あるシーンでカメラを指定すると、次にカメラ指定を持つシーンが現れるまで、そのカメラがアクティブのまま維持されます。<br />
+<strong>複数カメラの併用</strong>: 1 シーンに複数のカメラ指定を並べた場合、時刻順で後勝ちになります。<br />
+<strong>境界跨ぎ対策のリード時間</strong>: シーン境界ちょうどでカメラを切り替えると、前シーンの最終フレームで次のアングルに切り替わって見えることがあります。これを防ぐため、「最初」指定は最低 0.1 秒シーン内側へずらし（遅延がこれより大きい場合は遅延を優先）、「最後」指定はシーン終了の 0.2 秒手前で切り替えます。シーン尺がリード時間より短い場合は Console に Warning を出します。</p>
+</blockquote>
+<hr />
+<h3 id="4-7-暗転ボックスを設定する">4-7. 暗転ボックスを設定する</h3>
+<p><strong>設定</strong> タブの「暗転」セクションで設定します。</p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>暗転用オブジェクト</strong></td>
+<td>暗転演出で使用するボックス状オブジェクトの親（Renderer が必須）。リスト形式で複数指定可能</td>
+</tr>
+<tr>
+<td><strong>暗転中ガイド</strong></td>
+<td>暗転中に表示するガイド用オブジェクト（任意）。リスト形式で複数指定可能</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-タイムラインを生成する">5. タイムラインを生成する</h2>
+<p>シーン設定が完了したら、タイムライン生成を実行します。</p>
+<h3 id="生成前チェックリスト">生成前チェックリスト</h3>
+<ul>
+<li><strong>タイトル</strong> が入力されている</li>
+<li><strong>PlayableDirector</strong> が割り当てられている</li>
+<li>シーンが 1 つ以上登録されている</li>
+<li>照明フェードを使用する場合、<code>Light Root</code> 以下に <code>Light</code> または NoribenBeamLight MeshRenderer がある</li>
+<li>ワープを使用する場合、<strong>ワープ先Transform</strong> が全て割り当てられている</li>
+<li>暗転を使用する場合、<strong>暗転用オブジェクト</strong> が設定されている</li>
+<li>カメラを使用する場合、<strong>CinemachineBrain</strong> が割り当てられている</li>
+</ul>
+<p>上の 3 つが揃うまで、生成ボタンは押せません。</p>
+<h3 id="生成手順">生成手順</h3>
+<ol>
+<li><code>Stage Timeline Builder</code> ウィンドウの <strong>シーン一覧</strong> タブを開きます</li>
+<li>ページ最下部の <strong>「タイムライン生成」</strong> ボタンをクリックします</li>
+<li>処理が完了すると、<code>{GeneratedBaseFolder}/{タイトル}/</code> に以下のアセットが生成されます：
+<ul>
+<li><code>{タイトル}_AllScenes.playable</code> — メインの TimelineAsset</li>
+<li><code>Anim/</code> フォルダ — 照明・BGM・SE・ワープマーカー用 AnimationClip</li>
+<li><code>StageTimelineConfigBackup.json</code> — 設定内容の JSON バックアップ</li>
+</ul>
+</li>
+<li><code>StageTimelineManager</code> を割り当てている場合、シーン境界・キャラクター・ワープ情報が自動で書き込まれます</li>
+</ol>
+<blockquote>
+<p><strong>GeneratedBaseFolder が空の場合</strong>: 既定の出力先 <code>Assets/MashiroSmallTheater/StageTimelineManager/Generated</code> が使われます。<br />
+<strong>再生成について</strong>: 設定を変更した場合は、再度「タイムライン生成」を押してください。既存のアセットは上書きされます。</p>
+</blockquote>
+<hr />
+<h2 id="6-q-シート-csv-をエクスポートする">6. Q シート CSV をエクスポートする</h2>
+<p>演出 Q シートの代替・参考資料として、シーン構成を CSV で書き出せます。Excel / Google Sheets で開いて、他の演出担当が作った Q シートと見比べながら設定を転記する用途を想定しています。インポート機能はありません（出力専用）。</p>
+<h3 id="出力手順">出力手順</h3>
+<ol>
+<li><code>Stage Timeline Builder</code> ウィンドウの <strong>設定</strong> タブを開きます</li>
+<li>一番下の <strong>「Q シート CSV を出力」</strong> ボタンをクリックします</li>
+<li>保存先ダイアログでファイル名と保存先を指定します</li>
+<li>保存後、ファイルがあるフォルダが自動で開きます（OS の Finder / Explorer）</li>
+</ol>
+<h3 id="出力フォーマット">出力フォーマット</h3>
+<ul>
+<li>文字コード: UTF-8 (BOM 付き)</li>
+<li>区切り: カンマ</li>
+<li>セル内改行: LF（Excel / Google Sheets で 1 セル内の複数行として展開されます）</li>
+</ul>
+<h3 id="csv-の構成">CSV の構成</h3>
+<p>ファイル先頭に <code># Stage Timeline Builder Export</code> の 1 行、続いて <strong>メタ情報ブロック</strong>（タイトル / 出力日時）が <code>キー,値</code> の形式で並び、空行を挟んで <strong>シーン表</strong> が続きます。</p>
+<p>シーン表のカラム：</p>
+<table>
+<thead>
+<tr>
+<th>カラム</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cue</td>
+<td>Cue 番号（Builder の「シーン X」と同じ採番）</td>
+</tr>
+<tr>
+<td>シーン</td>
+<td>シーン名（チェーン先頭シーンのもの）</td>
+</tr>
+<tr>
+<td>キッカケ</td>
+<td>キッカケ文（チェーン先頭シーンのもの）</td>
+</tr>
+<tr>
+<td>照明</td>
+<td>照明フェード（FI / FO / CHG）と色・強度</td>
+</tr>
+<tr>
+<td>暗転</td>
+<td>暗転 FI / FO。指示なしでも暗転継続中は「暗転中」と表示</td>
+</tr>
+<tr>
+<td>BGM</td>
+<td>BGM の FI / FO / CHG とボリューム・ピッチ</td>
+</tr>
+<tr>
+<td>SE</td>
+<td>SE の再生</td>
+</tr>
+<tr>
+<td>オブジェクト</td>
+<td>オブジェクトの ON / OFF（Toggle）</td>
+</tr>
+<tr>
+<td>アニメーション</td>
+<td>Play / Stop と Hold / SingleShot の別</td>
+</tr>
+<tr>
+<td>ワープ</td>
+<td>キャラクター → 行き先名</td>
+</tr>
+<tr>
+<td>カメラ</td>
+<td>カメラ切替の指示</td>
+</tr>
+<tr>
+<td>尺</td>
+<td>該当 Cue 全体の総尺（<code>Xs</code>）</td>
+</tr>
+</tbody>
+</table>
+<p>空のセルには <code>-</code> が入ります。</p>
+<h3 id="cue-と次のシーンを統合の扱い">Cue と「次のシーンを統合」の扱い</h3>
+<ul>
+<li><strong>Cue 番号 = Builder の「シーン X」表示と同じ番号</strong>です。</li>
+<li><strong>「次のシーンを統合」が ON のシーンは、続くシーンと同じ Cue として 1 行にまとめて出力</strong>されます。Builder 側では「シーン 2-2」のように表示される 2 番目以降のシーンが、Q シート上では「シーン 2」の行に統合されます。</li>
+<li>統合されたシーンの効果は、内部的なサブシーン開始時刻ぶん時間オフセットされた状態で同じセルに書き出されます。例: 1 番目のサブシーンの尺が 10s なら、2 番目のサブシーンの効果は <code>[+10.0s] ...</code> として表示されます。</li>
+<li><strong>シーン名はサブシーン分も結合されて出力されます</strong>（例: <code>暗転 / ワープ・心音FI</code>）。サブシーン側にもシーン名を入力できます（キッカケはチェーン先頭シーンのものだけが採用されます）。</li>
+</ul>
+<h3 id="セル内表記">セル内表記</h3>
+<p>行は <strong>時間オフセット → アクションタグ → ターゲット名 → 尺 → 付加パラメータ</strong> の順で並びます。</p>
+<ul>
+<li><strong>時間オフセット</strong>: <code>[+0.5s]</code> <code>[end]</code> <code>[end+1.0s]</code>（即時の場合は省略）</li>
+<li><strong>アクションタグ</strong>: <code>[FI]</code> <code>[FO]</code> <code>[CI]</code> <code>[CO]</code> <code>[Change]</code> <code>[ON]</code> <code>[OFF]</code> <code>[Play]</code> <code>[Stop]</code>
+<ul>
+<li>0.0s（即時）のフェードは <code>[FI]/[FO]</code> ではなく <strong><code>[CI]/[CO]</code></strong>（カットイン・カットアウト）になります</li>
+<li>SE とワープはアクションが 1 種しかないためタグを省略</li>
+</ul>
+</li>
+<li><strong>フェード尺</strong>: ターゲット名のあとに <code>1.0s</code>（0.0s のときは省略）</li>
+<li><strong>照明色</strong>: <code>暖色(#FFCC88)</code> のように <strong>色カテゴリ + HEX</strong>。白に十分近い色は省略</li>
+<li><strong>強度</strong>: <code>i=0.7</code>（1.0 のときは省略）</li>
+<li><strong>音量・ピッチ</strong>: <code>vol=0.8 pitch=0.9</code>。<strong>BGM の FO のときは <code>vol=</code> を省略</strong>（到達点が 0 で意味を持たないため）</li>
+<li><strong>アニメーション</strong>: <code>[Play] target (clip, Hold)</code> の形式。Stop は <code>[Stop] target</code></li>
+<li><strong>略号</strong>: <code>FI</code> (Fade In) / <code>FO</code> (Fade Out) / <code>CI</code> (Cut In) / <code>CO</code> (Cut Out) / <code>Change</code> / <code>ON</code> / <code>OFF</code> / <code>Play</code> / <code>Stop</code></li>
+</ul>
+<p>色カテゴリは色相で <code>赤 / 橙 / 黄 / 黄緑 / 緑 / 水色 / 青 / 紫 / 桃</code> の 9 区分、ほぼ無彩色は <code>白</code>、極めて暗い色は <code>暗</code> に丸めます（HEX が併記されるので正確な色は HEX で確認できます）。</p>
+<h3 id="出力例">出力例</h3>
+<pre><code>[+0.5s][FI] 裁判官ライト 0.5s 暖色(#FFCC88) i=0.7
+[FI] 通常時照明 1.0s
+[CI] 全体照明                     ← 即時（フェード尺 0s）はカットイン表記
+[Change] シーリング_通常 3.0s 青(#6270C9)
+</code></pre>
+<pre><code>[Play] ジル用Station (station1_1, Hold)
+[Stop] ジル用Station
+</code></pre>
+<pre><code>ジル → 中央正面
+[end+1.0s] シンディ → 上手側
+</code></pre>
+<h3 id="注意点">注意点</h3>
+<ul>
+<li>このエクスポートは出力専用で、生成された CSV から Builder 側に取り込む機能はありません</li>
+<li>カラム名・並び順を演出 Q シートと完全一致させているわけではありません。あくまで「見比べやすい」ことを優先しています</li>
+<li>「舞台」「小道具」「エフェクト」のように演出シートでカテゴリ分けされている項目は、Builder 側のデータ構造に合わせて「オブジェクト」「アニメーション」にまとめて出力されます</li>
+</ul>
+<hr />
+<h2 id="7-stagetimelinemanager-を設定する">7. StageTimelineManager を設定する</h2>
+<p>シーンに配置した Prefab には、UIが設定済みの <code>StageTimelineManager</code> が含まれています。基本的には以下の最低限の割り当てのみ行えば動作します。</p>
+<h3 id="最低限必要な設定">最低限必要な設定</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Timeline</strong></td>
+<td>生成された <code>{タイトル}_AllScenes.playable</code> を持つ <code>PlayableDirector</code> を割り当てます</td>
+</tr>
+</tbody>
+</table>
+<p>タイムライン生成時に <code>StageTimelineManager</code> を割り当てていた場合、チェックポイント・キャラクター・ワープ情報は自動で入力済みです。手動で変更する必要はありません。</p>
+<h3 id="inspector-の主要フィールド参考">Inspector の主要フィールド（参考）</h3>
+<p>以下は確認・調整が必要になった場合の参考情報です。</p>
+<p><strong>再生設定</strong></p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>デフォルト</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Scheduled Start Lead Time</strong></td>
+<td>0.5 秒</td>
+<td>再生命令から実際に再生が始まるまでの余裕時間。ネットワーク遅延が大きい場合は増やします</td>
+</tr>
+<tr>
+<td><strong>Checkpoint Safety Margin</strong></td>
+<td>0.05 秒</td>
+<td>チェックポイントの手前で止まるマージン</td>
+</tr>
+<tr>
+<td><strong>Enable Checkpoint Hard Stop</strong></td>
+<td>ON</td>
+<td>ON のとき、シーン境界でタイムラインが自動停止します</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Auto Play Settings</strong></p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>デフォルト</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Auto Play To First Checkpoint On Instance Start</strong></td>
+<td>OFF</td>
+<td>ON のとき、インスタンス最初の Master が Join した時点で第1シーン末尾（最初のチェックポイント）まで自動再生します。使用する場合は <code>PlayableDirector</code> の <code>Play On Awake</code> をオフにしてください</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-vrchat-上での使い方">8. VRChat 上での使い方</h2>
+<h3 id="オーナー権限">オーナー権限</h3>
+<p>タイムラインの操作は <strong>オーナー</strong> 権限を持つプレイヤーのみが行えます。初期状態ではシーンにアップロードした本人が対象になりますが、公演中にオーナーを移譲することもできます。</p>
+<p>操作パネルには以下のボタンが並んでいます。</p>
+<h3 id="再生コントロール">再生コントロール</h3>
+<table>
+<thead>
+<tr>
+<th>ボタン</th>
+<th>説明</th>
+<th>押せる人</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Play</strong></td>
+<td>タイムラインを再生します</td>
+<td>オーナーのみ</td>
+</tr>
+<tr>
+<td><strong>Pause</strong></td>
+<td>タイムラインを一時停止します</td>
+<td>オーナーのみ</td>
+</tr>
+<tr>
+<td><strong>Next</strong></td>
+<td>次のシーン（チェックポイント）へ進みます</td>
+<td>オーナーのみ（Timeline Lock 中は不可）</td>
+</tr>
+<tr>
+<td><strong>Back</strong></td>
+<td>前のシーンへ戻ります</td>
+<td>オーナーのみ（Timeline Lock 中は不可）</td>
+</tr>
+<tr>
+<td><strong>+1s / -1s</strong></td>
+<td>再生位置を 1 秒ずつ調整します</td>
+<td>オーナーのみ（Timeline Lock 中は不可）</td>
+</tr>
+<tr>
+<td><strong>Reset</strong></td>
+<td>最初から再生します</td>
+<td>オーナーのみ（Timeline Lock 中は不可）</td>
+</tr>
+<tr>
+<td><strong>Set Owner</strong></td>
+<td>操作権限を自分に移します</td>
+<td>全員（常時）</td>
+</tr>
+</tbody>
+</table>
+<p>再生中は Play ボタンが自動で非活性になり、Pause やチェックポイント停止で再び押せるようになります。</p>
+<h3 id="ロック機能">ロック機能</h3>
+<table>
+<thead>
+<tr>
+<th>ボタン</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Timeline Lock</strong></td>
+<td>ON のとき、<strong>オーナーを含む全員</strong>が Next / Back / ±1s / Reset を操作できなくなります（誤操作防止）。ボタンがオレンジ色になります。Play / Pause / Set Owner は影響を受けません</td>
+</tr>
+<tr>
+<td><strong>Registration Lock</strong></td>
+<td>ON のとき、キャラクター登録の変更ができなくなります</td>
+</tr>
+</tbody>
+</table>
+<p>公演本番中はどちらも ON にして誤操作を防ぐことを推奨します。</p>
+<h3 id="キャラクターへの登録プレイヤー視点">キャラクターへの登録（プレイヤー視点）</h3>
+<ol>
+<li>操作パネルのキャラクター登録エリアを確認します</li>
+<li>自分が担当するキャラクター名の横にある <strong>登録ボタン</strong> を押します</li>
+<li>自分の表示名がそのキャラクターに登録されます</li>
+<li>再度押すと登録解除できます</li>
+<li>登録情報はオーナーを経由して全プレイヤーに同期されます</li>
+</ol>
+<blockquote>
+<p><strong>1人1キャラクター</strong>: 1 人のプレイヤーが同時に登録できるキャラクターは 1 つだけです。すでに登録済みの人が別のキャラクターに登録すると、前の登録は自動的に解除されます。</p>
+</blockquote>
+<blockquote>
+<p><strong>注意</strong>: 登録ロック中は変更できません。公演前に登録を済ませておくことを推奨します。</p>
+</blockquote>
+<h3 id="ワープについて">ワープについて</h3>
+<p>タイムラインが進行し、設定したワープのタイミングになると、該当キャラクターに登録しているプレイヤーが自動でテレポートします。プレイヤー側は何も操作する必要はありません。</p>
+<hr />
+<h2 id="9-トラブルシューティング">9. トラブルシューティング</h2>
+<h3 id="タイムライン生成ボタンが押せない--押してもエラーになる">「タイムライン生成」ボタンが押せない / 押してもエラーになる</h3>
+<ul>
+<li><strong>タイトル</strong> が未入力ではないか確認してください</li>
+<li><strong>PlayableDirector</strong> が割り当てられているか確認してください</li>
+<li>シーンが 1 つ以上登録されているか確認してください</li>
+<li><strong>GeneratedBaseFolder</strong> が <code>Assets</code> 配下の有効なパスになっているか確認してください（空欄のときは既定の出力先が使われます）</li>
+<li>「閲覧モード」が ON になっていないか確認してください</li>
+</ul>
+<h3 id="照明フェードが生成されない効かない">照明フェードが生成されない・効かない</h3>
+<ul>
+<li><code>Light Root</code> の子に <code>Light</code> コンポーネントまたは NoribenBeamLight シェーダーを使用した MeshRenderer があるか確認してください</li>
+<li>NoribenBeamLight を使用している場合、シェーダー名が <code>Noriben/noribenBeamLight</code> になっているか確認してください</li>
+</ul>
+<h3 id="ワープが発動しない">ワープが発動しない</h3>
+<ul>
+<li>キャラクターにプレイヤーが登録されているか確認してください（未登録の場合はワープしません）</li>
+<li><strong>ワープ先Transform</strong> が正しく割り当てられているか確認してください</li>
+<li>タイムライン生成を再実行してワープデータが更新されているか確認してください</li>
+</ul>
+<h3 id="音が鳴らない">音が鳴らない</h3>
+<ul>
+<li><code>AudioSource</code> が有効な状態であるか確認してください</li>
+<li>音量が 0 になっていないか確認してください</li>
+<li>BGM の <code>Play On Awake</code> はタイムライン生成時に自動で ON へ揃えます。鳴らない場合は生成を再実行し、対象 AudioSource にバインドが正しく設定されているか確認してください</li>
+</ul>
+<h3 id="animator-パラメータが反映されない--console-に-warning-が出る">Animator パラメータが反映されない / Console に Warning が出る</h3>
+<ul>
+<li>4-2 の <strong>「高度な機能を表示」</strong> が ON になっているか確認してください（OFF のときシーン側に追加ボタンが出ません）</li>
+<li>シーン編集 UI のエントリに「<strong>[参照切れ — 再選択してください]</strong>」や警告 HelpBox が出ていないか確認してください。参照切れの状態で生成するとそのエントリだけスキップされます</li>
+<li>プリセットの「値の選択肢」に該当する Int 値が登録されているか確認してください（プリセットの Int 値を変更した場合、シーン側は自動追従しますが、選択肢ごと削除した場合は再選択が必要です）</li>
+<li>AnimatorController 側に同名の Int パラメータが定義されているか確認してください（パラメータ名が一致しないと生成時に Warning が出てスキップされます）</li>
+</ul>
+<h3 id="非オーナーで再生位置がずれる">非オーナーで再生位置がずれる</h3>
+<ul>
+<li><code>Scheduled Start Lead Time</code> を少し大きくしてみてください（デフォルト 0.5 秒）</li>
+<li>VRChat のネットワーク状態が不安定な場合、ずれが大きくなることがあります</li>
+</ul>
+<h3 id="カメラが切り替わらない">カメラが切り替わらない</h3>
+<ul>
+<li><strong>設定</strong> タブの <strong>CinemachineBrain</strong> に <code>CinemachineBrain</code> コンポーネントを持つ GameObject が割り当てられているか確認してください。未割り当てだと Console に Warning を出してカメラトラックの生成が丸ごとスキップされます</li>
+<li>カメラプリセットの <code>Virtual Camera</code> に <code>CinemachineVirtualCamera</code> コンポーネントを持つ GameObject が設定されているか確認してください</li>
+<li>Cinemachine がプロジェクトに導入されていない場合、Console に Warning を出してカメラトラックの生成はスキップされます</li>
+</ul>
+<h3 id="公演前チェックリスト">公演前チェックリスト</h3>
+<ul>
+<li>タイムライン生成を最後に実行してから設定を変更していないか</li>
+<li>PlayableDirector に生成された <code>.playable</code> ファイルが割り当てられているか</li>
+<li>キャラクター登録が完了しているか</li>
+<li>Timeline Lock / Registration Lock を必要に応じて ON にしたか</li>
+<li>オーナーが正しいプレイヤーになっているか</li>
+</ul>
+<hr />
+<h2 id="10-ランタイム操作パネルの配線">10. ランタイム操作パネルの配線</h2>
+<p>本節では、操作パネルのボタンを <code>StageTimelineManager</code> に配線する手順をまとめます。</p>
+<blockquote>
+<p><strong>配布プレハブを使う場合、本節の作業は不要です。</strong> <code>StageTimelineManager.prefab</code> の操作パネルはボタンが配線済みです。本節は、パネルを自作する場合や既存パネルを作り替える場合のための情報です。</p>
+</blockquote>
+<h3 id="前提">前提</h3>
+<ul>
+<li>進行操作（Next / Back / Play / Pause / ±1s / Reset）はオーナーのみ実行できます。</li>
+<li>非オーナーの操作ボタンは <code>ownerOnlyButtons</code> で非活性になります。</li>
+<li>再生中は <code>playButton</code> が自動で非活性になります。</li>
+</ul>
+<h3 id="inspector-で設定するボタン">Inspector で設定するボタン</h3>
+<h4 id="playbutton単体"><code>playButton</code>（単体）</h4>
+<ul>
+<li>用途: 再生ボタン。再生中は自動で <code>interactable = false</code> になります</li>
+<li>「再生中は押せない」制御の専用フィールドです</li>
+</ul>
+<h4 id="owneronlybuttons配列"><code>ownerOnlyButtons</code>（配列）</h4>
+<ul>
+<li>用途: オーナー以外に押させたくない操作ボタンを登録します</li>
+<li>例: Next / Back / Pause / Play / +1s / -1s / Reset</li>
+<li>注意:
+<ul>
+<li><strong>Set Owner ボタンはこの配列に入れないでください</strong>（誰でも押せる必要があります）</li>
+<li><code>playButton</code> を配列に入れても重複制御はスキップされます（<code>playButton</code> 側の専用ロジックが優先されます）</li>
+</ul>
+</li>
+</ul>
+<h3 id="各ボタンの-onclick-設定">各ボタンの OnClick 設定</h3>
+<p>以下をそれぞれ UI Button の OnClick に割り当てます（対象コンポーネント: <code>StageTimelineManager</code>）。</p>
+<table>
+<thead>
+<tr>
+<th>ボタン</th>
+<th>割り当てるメソッド</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Next</td>
+<td><code>OnClickNext()</code></td>
+</tr>
+<tr>
+<td>Back</td>
+<td><code>OnClickBack()</code></td>
+</tr>
+<tr>
+<td>Pause</td>
+<td><code>OnClickPause()</code></td>
+</tr>
+<tr>
+<td>Play</td>
+<td><code>OnClickPlay()</code></td>
+</tr>
+<tr>
+<td>+1s</td>
+<td><code>OnClickPlus1s()</code></td>
+</tr>
+<tr>
+<td>-1s</td>
+<td><code>OnClickMinus1s()</code></td>
+</tr>
+<tr>
+<td>Reset</td>
+<td><code>OnClickReset()</code></td>
+</tr>
+<tr>
+<td>Set Owner</td>
+<td><code>OnClickSetOwner()</code>（ローカルプレイヤーに所有権を移し、ボタンの活性状態を再評価します）</td>
+</tr>
+<tr>
+<td>Timeline Lock</td>
+<td><code>OnClickToggleTimelineOperationLock()</code></td>
+</tr>
+<tr>
+<td>Registration Lock</td>
+<td><code>OnClickToggleRegistrationLock()</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="配線後の確認項目">配線後の確認項目</h3>
+<ol>
+<li>オーナー以外で操作系ボタンが押せないこと</li>
+<li>オーナーで操作系ボタンが押せること</li>
+<li>再生開始後、Play ボタンが非活性になること</li>
+<li>Pause / チェックポイント停止後、Play ボタンが再活性になること</li>
+<li>Set Owner ボタンは常に押せること</li>
+</ol>
+<hr />
+<h2 id="11-api-リファレンス">11. API リファレンス</h2>
+<h3 id="stagetimelinemanagerruntime">StageTimelineManager（Runtime）</h3>
+<p>進行操作はオーナーのみ有効です（<code>OnClickSetOwner</code> を除く）。<code>StageTimelineManager.prefab</code> を使う場合、操作パネルのボタンは配線済みです。</p>
+<table>
+<thead>
+<tr>
+<th>メソッド</th>
+<th>用途</th>
+<th>呼び出し種別</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OnClickNext</code> / <code>OnClickBack</code> / <code>OnClickPlay</code> / <code>OnClickPause</code> / <code>OnClickPlus1s</code> / <code>OnClickMinus1s</code> / <code>OnClickReset</code></td>
+<td>進行操作（次へ / 戻る / 再生 / 一時停止 / ±1秒 / リセット）</td>
+<td><code>Button.OnClick</code> から配線（プレハブでは配線済み）</td>
+</tr>
+<tr>
+<td><code>OnClickSetOwner</code></td>
+<td>操作オーナーの取得</td>
+<td>同上</td>
+</tr>
+<tr>
+<td><code>OnClickToggleTimelineOperationLock</code> / <code>OnClickToggleRegistrationLock</code></td>
+<td>操作ロック / 登録ロックの切替</td>
+<td>同上</td>
+</tr>
+<tr>
+<td><code>Next()</code> / <code>Back()</code> / <code>PlayTimeline()</code> / <code>PauseTimeline()</code> / <code>Plus1s()</code> / <code>Minus1s()</code> / <code>ResetTimeline()</code></td>
+<td>進行操作の実体</td>
+<td>他の Udon から <code>SendCustomEvent</code> で呼ぶ外部連携用</td>
+</tr>
+<tr>
+<td><code>GetCurrentScene()</code> / <code>GetCurrentTime()</code> / <code>GetSyncedTime()</code> / <code>GetProgress()</code> / <code>GetNextCheckpointTime()</code> / <code>GetOwnerName()</code></td>
+<td>進行状態の取得</td>
+<td>他コンポーネントから呼ぶ内部連携用</td>
+</tr>
+<tr>
+<td><code>GetSceneDisplayName(int)</code> / <code>GetSceneNextCue(int)</code></td>
+<td>シーン情報の取得</td>
+<td>同上</td>
+</tr>
+<tr>
+<td><code>GetCharacterCount()</code> / <code>GetCharacterDisplayNameAt(int)</code> / <code>GetCharacterDisplayNames()</code> / <code>GetAssignedPlayerId(int)</code></td>
+<td>配役情報の取得</td>
+<td>同上</td>
+</tr>
+<tr>
+<td><code>ReceiveRegistrationRequest(...)</code> / <code>ReceiveUnregisterRequest(...)</code> / <code>OnDeserialization</code> / <code>OnPlayerJoined</code></td>
+<td>ネットワーク処理</td>
+<td>内部専用（配線不要）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="stagecharacterregistrationrow配役登録行">StageCharacterRegistrationRow（配役登録行）</h3>
+<p><code>CharacterRegistrationRow.prefab</code> 内で配線済みです。</p>
+<table>
+<thead>
+<tr>
+<th>メソッド</th>
+<th>用途</th>
+<th>呼び出し種別</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Submit()</code></td>
+<td>配役の登録 / 解除の申請</td>
+<td>行プレハブ内で配線済み</td>
+</tr>
+<tr>
+<td><code>Configure(...)</code> / <code>SetRegisteredPlayerName(...)</code> / <code>SetInteractable(...)</code> / <code>SendBroadcastRequest(...)</code> / <code>BroadcastRequest(...)</code></td>
+<td>初期化・表示更新・ネットワーク処理</td>
+<td>内部専用（配線不要）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="buildereditor-拡張">Builder（Editor 拡張）</h3>
+<p>Builder は Unity Editor 上のツールのため、ランタイムの配線対象はありません。Animator・Udon 連携の使い方は <a href="Builder/"><code>Builder/README.md</code></a> を参照してください。</p>
+<hr />
+<p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
+<ul>
+<li>メール: <a href="mailto:contact@mashirotheater.com">contact@mashirotheater.com</a></li>
+<li>X: <a href="https://x.com/hakushiza">https://x.com/hakushiza</a></li>
+<li>Discord: <a href="https://discord.com/invite/yU2Es38sVX">https://discord.com/invite/yU2Es38sVX</a></li>
+</ul>
+
+</main>
+<footer>main@2698a7a 時点の内容です。 · <a href="../../">Mashiro Small Theater VPM</a></footer>
+</body>
+</html>

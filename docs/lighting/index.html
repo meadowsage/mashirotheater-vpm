@@ -1,0 +1,1562 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LightingControlSystem — Mashiro Small Theater</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fg: #1f1f1f; --bg: #ffffff; --muted: #666666; --line: rgba(127,127,127,.3);
+    --code-bg: rgba(127,127,127,.14); --accent: #E85900;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e6e6; --bg: #161616; --muted: #999999; }
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.75; max-width: 52rem; margin: 0 auto; padding: 1.2rem 16px 4rem;
+    color: var(--fg); background: var(--bg); overflow-wrap: anywhere;
+  }
+  a { color: var(--accent); }
+  nav { font-size: .9rem; color: var(--muted); margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; line-height: 1.4; }
+  h2 { margin-top: 2.4rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+  h3 { margin-top: 1.8rem; }
+  code { background: var(--code-bg); padding: .1rem .35rem; border-radius: .25rem; font-size: .9em; }
+  pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: .4rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; display: block; overflow-x: auto; margin: 1rem 0; }
+  th, td { text-align: left; padding: .45rem .7rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--code-bg); }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid var(--line); color: var(--muted); }
+  img { max-width: 100%; }
+  footer { margin-top: 3rem; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<nav><a href="../">マニュアル</a> / <a href="./">Mashiro Theater Lighting Control System</a></nav>
+<main>
+<h1 id="lightingcontrolsystem">LightingControlSystem</h1>
+<p>ステージ照明を VRChat 上で操作するためのツール群です。Light（実ライト）とビームライト
+（円錐メッシュ）をグループ単位でまとめ、明るさ・色・スポット角をオペレーションボードから
+同期操作します。</p>
+<h2 id="主なコンポーネント">主なコンポーネント</h2>
+<table>
+<thead>
+<tr>
+<th>ファイル</th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MashiroLightGroup.cs</code></td>
+<td>1 グループ分の Light / ビームライトを保持し、明るさ・色・サイズを適用・同期する</td>
+</tr>
+<tr>
+<td><code>MashiroLightFixture.cs</code></td>
+<td>灯体 1 台分の回転対象（アーム部 / 本体部）を示す編集時マーカー</td>
+</tr>
+<tr>
+<td><code>MashiroLightingManager.cs</code></td>
+<td>複数グループの統括・プリセット適用</td>
+</tr>
+<tr>
+<td><code>MashiroIntensitySlidersHandler.cs</code></td>
+<td>明るさスライダー UI のハンドラ</td>
+</tr>
+<tr>
+<td><code>MashiroColorButtonHandler.cs</code></td>
+<td>色選択ボタンのハンドラ</td>
+</tr>
+<tr>
+<td><code>MashiroFadeDurationButtonHandler.cs</code></td>
+<td>遅延実行モードの反映秒数選択ボタンのハンドラ</td>
+</tr>
+<tr>
+<td><code>MashiroLightScenePreset.cs</code></td>
+<td>照明シーンプリセット 1 件分のデータ・呼出ボタン</td>
+</tr>
+<tr>
+<td><code>MashiroLightPresetSlotHandler.cs</code></td>
+<td>ランタイムプリセットスロット 1 個分の UI ハンドラ（読込・登録・削除）</td>
+</tr>
+<tr>
+<td><code>MashiroBlackoutButtonHandler.cs</code></td>
+<td>完全暗転ボタン 1 個分のハンドラ（トグル）</td>
+</tr>
+<tr>
+<td><code>MashiroConsoleFoldToggle.cs</code></td>
+<td>オペレーター UI をまとめて折りたたむローカルトグル（SetPassCall 削減）</td>
+</tr>
+<tr>
+<td><code>Editor/MashiroLightGroupEditor.cs</code></td>
+<td><code>MashiroLightGroup</code> のカスタムインスペクタ（点灯テスト機能）</td>
+</tr>
+<tr>
+<td><code>Editor/MashiroLightFixtureEditor.cs</code></td>
+<td><code>MashiroLightFixture</code> のカスタムインスペクタ（基準姿勢の保存・注意書き）</td>
+</tr>
+<tr>
+<td><code>Editor/MashiroLightRotationBuildBaker.cs</code></td>
+<td>回転対象・基準姿勢を <code>MashiroLightGroup</code> へ転記する自動処理（Play 開始時・ビルド時）</td>
+</tr>
+<tr>
+<td><code>Editor/MashiroLightingControlWindow.cs</code></td>
+<td>シーン内の照明グループを一覧制御する照明コントロールウィンドウ</td>
+</tr>
+</tbody>
+</table>
+<h2 id="導入">導入</h2>
+<p><code>Prefabs/</code> に配置用のプレハブが同梱されています。</p>
+<table>
+<thead>
+<tr>
+<th>プレハブ</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MashiroLightingManager.prefab</code></td>
+<td>卓一式。<code>MashiroLightingManager</code> と操作 UI（フェーダー列・色ボタン・A/B クロスフェード・遅延実行モード・プリセットスロット・暗転ボタン・折りたたみトグル）、暗転用の黒箱までを含みます</td>
+</tr>
+<tr>
+<td><code>FaderGroup.prefab</code></td>
+<td>フェーダーグループ 1 列分。<code>sliderPrefab</code> に割り当てます（卓プレハブでは設定済み）</td>
+</tr>
+<tr>
+<td><code>ColorButton.prefab</code></td>
+<td>色選択ボタン 1 個分。<code>colorButtonPrefab</code> に割り当てます（同上）</td>
+</tr>
+<tr>
+<td><code>PresetSlot.prefab</code></td>
+<td>ランタイムプリセットスロット 1 個分。<code>presetSlotPrefab</code> に割り当てます（同上）</td>
+</tr>
+<tr>
+<td><code>PresetButton.prefab</code></td>
+<td>シーンプリセット呼出ボタンの雛形。OnClick に <code>MashiroLightScenePreset.OnButtonClick</code> を割り当てて使います</td>
+</tr>
+<tr>
+<td><code>StageLights_Preset.prefab</code></td>
+<td>ステージ照明の配置サンプル（Spot ライトと <code>BeamLightCone</code> メッシュ一式）。<code>MashiroLightGroup</code> は付いていないため、グループ化したい単位のオブジェクトに自分で付与します</td>
+</tr>
+</tbody>
+</table>
+<h3 id="最短の手順">最短の手順</h3>
+<ol>
+<li>照明（Spot ライトやビームライト）を 1 つの親オブジェクトの下にまとめ、グループにしたい
+単位のオブジェクトへ <code>MashiroLightGroup</code> を付与します（配下の Light / <code>BeamLight</code> を含む
+MeshRenderer は自動スキャンされます）。<code>StageLights_Preset.prefab</code> を配置サンプルとして
+流用できます。</li>
+<li><code>MashiroLightingManager.prefab</code> をシーンに配置します。</li>
+<li>配置した <code>MashiroLightingManager</code> の <code>lightGroupParent</code> に、手順 1 の親オブジェクトを
+割り当てます（<strong>唯一の必須設定</strong>。ここを起点に配下の <code>MashiroLightGroup</code> が自動収集され、
+フェーダー列が実行時に生成されます）。</li>
+<li>必要に応じて、暗転用の黒箱の位置調整や、シーンプリセット・プレビューパネルなどの
+任意機能を後述の各節に従って設定します。</li>
+</ol>
+<h2 id="mashirolightgroup">MashiroLightGroup</h2>
+<ul>
+<li><code>lights</code> / <code>beamLights</code> は子階層から<strong>自動スキャン</strong>されるため、手動設定は不要です。
+<ul>
+<li><code>lights</code>: 子階層のすべての <code>Light</code></li>
+<li><code>beamLights</code>: 子階層の <code>MeshRenderer</code> のうち、名前に <code>BeamLight</code> を含むもの</li>
+</ul>
+</li>
+<li><code>initialColor</code>: ライトの初期色（デフォルトは白）。</li>
+</ul>
+<p>実際の <code>Light.intensity</code> は <code>スライダー値 × intensityMultiplier</code> として求められます。
+<code>intensityMultiplier</code> は既定 1 の内部値で、インスペクタには表示されません。</p>
+<h3 id="ライトサイズエディタ機能">ライトサイズ（エディタ機能）</h3>
+<p>Spot ライトの <strong>Size（Angle）</strong>・<strong>Range</strong>・ビームライトの <strong>Y スケール</strong> をグループ単位で
+まとめて変更する永続的な機能です（テストではなく実データを書き換えます。Undo 可）。
+インスペクタの <strong>「ライトサイズ」</strong> セクションから操作します。</p>
+<ul>
+<li><strong>Size</strong>: スライダー（1〜179）。ドラッグに連動して即時反映され、グループ内の全 Spot ライトの
+<code>spotAngle</code> と、全ビームライトの <code>localScale.y</code>（自動計算）に適用されます（X/Z スケールは
+変更しません）。1 回のドラッグは 1 ステップの Undo にまとまります。</li>
+<li><strong>Range</strong>: スライダー（0〜200）。ドラッグに連動して即時反映され、グループ内の全ライトの
+<code>range</code> に適用されます。ビームライトの形状は <strong>Size のみに追従</strong>し、Range には追従しません。</li>
+</ul>
+<p>ビーム Y スケールは内部で <code>0.75 × cot(Size / 2)</code> として自動計算されます（ビームメッシュは
+頂点幅が固定の円錐で、長さ＝Y で開き角を合わせる構造のため）。</p>
+<blockquote>
+<p>ランタイムのサイズ操作はビームを <code>_ConeWidth</code>（マテリアル）で調整し、transform スケールには
+触れません。そのためここで設定した Y スケールは実行時に上書きされず、そのまま維持されます。</p>
+</blockquote>
+<h3 id="回転エディタ機能">回転（エディタ機能）</h3>
+<p>灯体の横回転（パン）・縦回転（チルト）を、グループ単位でまとめて回転する永続的な機能です
+（Undo 可）。インスペクタの <strong>「回転」</strong> セクションから操作します。</p>
+<p>回転対象は <code>MashiroLightFixture</code> コンポーネントで指定します（名前マッチングではなく、Prefab 側で
+手動付与する方式）。</p>
+<h4 id="セットアップmashirolightfixture">セットアップ（MashiroLightFixture）</h4>
+<p><strong>回転させたいオブジェクト自体</strong>（アーム部・本体部など）に <code>MashiroLightFixture</code> を付与します。
+コンポーネントは自身の Transform を回転させます。</p>
+<ul>
+<li><strong>横回転（パン）</strong>: <code>allowHorizontal</code>（許容するか）。<strong>パンはワールドの垂直軸まわり</strong>に回るため、
+軸の指定は不要です。</li>
+<li><strong>縦回転（チルト）</strong>: <code>allowVertical</code>（許容するか）、<code>verticalAxis</code>（蝶番のローカル軸。通常 X 軸）。</li>
+</ul>
+<p>アーム（ハンガー）に付けてパンのみ許可、本体に付けてパン＋チルト許可、のように構成します。
+どの方向を許容するかは <code>allowHorizontal</code> / <code>allowVertical</code> で指定し、許容しない方向はスキップされます。</p>
+<ul>
+<li><strong>デフォルト（基準姿勢）</strong>: コンポーネントを<strong>付与した時点の向き</strong>を自動的に基準（パン/チルト 0）
+として記録します。天吊り・三脚反転など、その取り付け姿勢を 0 として扱います。</li>
+<li><strong>回転は LightGroup のスライダーで</strong>行ってください。<code>Transform</code> を手で直接回すのは非推奨です
+（スライダーの表示と実際の向きがずれます）。Fixture のインスペクタにも注意書きを表示します。</li>
+</ul>
+<h4 id="回転の適用mashirolightgroup-インスペクタ">回転の適用（MashiroLightGroup インスペクタ）</h4>
+<ul>
+<li><strong>横回転（パン）/ 縦回転（チルト）</strong>: スライダー（−90〜90）。各灯体の<strong>取付時のデフォルト姿勢
+からのパン/チルト角</strong>を指定します。
+<ul>
+<li><strong>パンはワールドの垂直軸</strong>まわり、<strong>チルトはローカルの蝶番軸</strong>まわりに回ります。デフォルトが
+傾いていても、パン時に首振り（X/Z の傾き）が発生しません。</li>
+<li>回転は各灯体の<strong>自分の原点</strong>まわりに行います（パン軸が原点を通る前提でモデルを組んでください）。</li>
+</ul>
+</li>
+<li><strong>現在値の表示</strong>: スライダーは選択時に各灯体に記録されたパン/チルト角を読み戻して表示します
+（他の照明を選んでから戻ってきても保持されます）。</li>
+<li><strong>Undo</strong>: 1 回のドラッグ操作が 1 ステップの Undo にまとまります。</li>
+<li><strong>現在の向きをデフォルトに保存</strong>: 各灯体の現在の向きを基準として保存し、パン/チルトを 0 にします。</li>
+<li><strong>デフォルトに戻す</strong>: 各灯体を保存済みデフォルトの向きへ戻します。</li>
+</ul>
+<blockquote>
+<p>回転は編集時に Transform へ直接焼き込む永続操作です。<code>MashiroLightFixture</code> は実行時には
+何もしない編集時メタデータで、VRChat ビルド時には除去されます。</p>
+</blockquote>
+<h3 id="影エディタ機能">影（エディタ機能）</h3>
+<p>グループ内の全 <code>Light</code> の影設定をまとめて変更する永続的な機能です（Undo 可・即時反映）。
+インスペクタの <strong>「影」</strong> セクションから操作します。</p>
+<ul>
+<li><strong>影タイプ</strong>: <code>None</code>（影なし）/ <code>Hard</code> / <code>Soft</code> を選択し、全ライトの <code>shadows</code> に適用します。</li>
+<li><strong>影の濃さ</strong>: スライダー（0〜1）。全ライトの <code>shadowStrength</code> に適用します（ドラッグ連動・
+1 ドラッグ 1 Undo）。<strong>影タイプが <code>None</code> のときは表示されません。</strong></li>
+</ul>
+<h3 id="カリングマスクエディタ機能">カリングマスク（エディタ機能）</h3>
+<p>グループ内の全 <code>Light</code> の <code>cullingMask</code> をまとめて変更する永続的な機能です（Undo 可・即時反映）。
+インスペクタの <strong>「カリングマスク」</strong> セクションから操作します。</p>
+<ul>
+<li><strong>対象レイヤー</strong>: ライトが照らす対象レイヤーを選択します。</li>
+<li><strong>アバターのみ（Player / PlayerLocal / MirrorReflection）</strong>: カリングマスクを
+アバター関連レイヤーのみに一括設定する簡易ボタンです（VRChat の標準レイヤー名で解決します）。</li>
+</ul>
+<h3 id="点灯テストエディタ機能">点灯テスト（エディタ機能）</h3>
+<p>Play モードに入らずに、配置中の照明を Scene ビューで確認するためのエディタ専用機能です。</p>
+<p><code>MashiroLightGroup</code> を選択するとインスペクタ下部に <strong>「点灯テスト」</strong> セクションが表示されます。</p>
+<ul>
+<li><strong>テスト明るさ</strong>: スライダー（0〜1）。ランタイムと同じく <code>明るさ × intensityMultiplier</code> が
+<code>Light.intensity</code> に適用されます。テスト中にスライダーを動かすと即時反映されます。</li>
+<li><strong>色</strong>: グループの <code>initialColor</code> を使用します。点灯中に <code>initialColor</code> を変更すると、
+プレビューへ動的に反映されます（テスト専用の色設定は廃止しました）。</li>
+<li><strong>点灯テストボタン</strong>: クリックすると、子階層の <strong>Light とビームライトを同時にスキャン</strong>して
+点灯します。点灯中はボタンがオレンジ色（選択時カラー）で強調表示されます。
+<strong>もう一度クリックするまで点灯したまま</strong>になり、別オブジェクトを選択しても消えません。</li>
+<li><strong>自動 全解除</strong>: 次のタイミングでは、点灯中のすべてのグループが自動的に消灯し、点灯前の
+状態に復元されます。
+<ul>
+<li>Play モードへの突入時</li>
+<li>Unity 終了時</li>
+<li>スクリプトの再コンパイル時</li>
+</ul>
+</li>
+</ul>
+<h4 id="非破壊プレビューについて">非破壊プレビューについて</h4>
+<p>点灯テストはシーンを汚さないことを優先しています。</p>
+<ul>
+<li>非アクティブな Light / ビームライトも対象にするため、<code>includeInactive</code> でスキャンします。</li>
+<li>Light は点灯前のアクティブ状態・明るさ・色を記憶し、消灯時にそのまま復元します。</li>
+<li>ビームライトのマテリアルは直接書き換えず <code>MaterialPropertyBlock</code> で上書きするため、
+共有マテリアルやマテリアルインスタンスを汚しません。消灯時に上書きを解除します。</li>
+</ul>
+<blockquote>
+<p>注意: あくまで「点灯時の見た目」を簡易確認するプレビューです。スポット角（サイズ）や
+色フェードなどランタイム固有の挙動は再現しません。</p>
+</blockquote>
+<h2 id="ランタイムのサイズ回転調整ランタイム機能">ランタイムのサイズ・回転調整（ランタイム機能）</h2>
+<p>選択中の照明グループに対して、VRC 内でスポット角（サイズ）と縦横回転を調整できます
+（オーナーのみ操作可・全員に同期）。いずれも<strong>ビルド時の状態を基準（0）とした相対調整</strong>です。</p>
+<h3 id="サイズ">サイズ</h3>
+<ul>
+<li><code>sizeSlider</code> は<strong>ビルド時のスポット角からの ±30 度オフセット</strong>として扱います
+（範囲は起動時に自動設定）。</li>
+<li>実際の <code>spotAngle</code> は <code>ビルド時の角度 + オフセット</code> を <strong>SpotAngle の有効範囲（1〜179 度）で
+クランプ</strong>します。ビルド時が 170 度なら +30 に振っても 179 度で頭打ちになり、ライト自体の
+制限を超えません。ビーム形状も追従します。</li>
+</ul>
+<h3 id="回転縦回転チルト--横回転パン">回転（縦回転チルト / 横回転パン）</h3>
+<ul>
+<li><code>panSlider</code>（横回転）/ <code>tiltSlider</code>（縦回転）で、<strong>ビルド時の向きから ±30 度</strong>回転します。</li>
+<li>回転対象はエディタの回転機能と同じく <code>MashiroLightGroup</code> 配下の <code>MashiroLightFixture</code> に
+倣います（<code>allowHorizontal</code> / <code>allowVertical</code> / <code>verticalAxis</code>）。パンはワールド垂直軸、
+チルトはローカル蝶番軸まわりで、デフォルトが傾いていても首振りが出ない計算です。</li>
+<li>回転は遅延実行モードの保留対象外で、常に即時反映・同期します。</li>
+</ul>
+<h4 id="回転対象の解決について自動操作不要">回転対象の解決について（自動・操作不要）</h4>
+<p><code>MashiroLightFixture</code> は VRChat ビルド時に除去されるため、ランタイム回転は回転対象・基準姿勢・
+許容軸を <code>MashiroLightGroup</code> へ転記したデータを参照します。この転記は
+<strong>Play 開始時・ビルド時に自動で行われます</strong>（<code>MashiroLightRotationBuildBaker</code>）。</p>
+<ul>
+<li>オペレータの操作は不要です。処理はビルド用の一時シーンに対して行われるため、元シーンは
+変更されません。処理時点の各灯体の向きが、ランタイムのパン/チルト 0 の基準になります。</li>
+</ul>
+<blockquote>
+<p>補足: 自動処理は UdonSharp のシーン処理の後に走らせて proxy→Udon を確定させています。
+UdonSharp を大きくバージョンアップした際は、Play で回転が効くことを一度確認してください。</p>
+</blockquote>
+<h3 id="ui-セットアップ">UI セットアップ</h3>
+<p><code>MashiroLightingManager</code> に以下を割り当てます（回転は任意機能。未割り当てなら何もしません）。</p>
+<ul>
+<li><code>sizeSlider</code> / <code>sizeSliderGameObject</code>（既存）</li>
+<li><code>panSlider</code> / <code>tiltSlider</code> … 回転スライダー（OnValueChanged に <code>OnPanSliderValueChanged</code> /
+<code>OnTiltSliderValueChanged</code> を割り当て）</li>
+<li><code>panSliderGameObject</code> / <code>tiltSliderGameObject</code> … グループ選択中のみ表示する行オブジェクト</li>
+</ul>
+<h2 id="遅延実行モードランタイム機能">遅延実行モード（ランタイム機能）</h2>
+<p>フェーダーを動かしても即時にはライトへ反映せず、<strong>「確定」ボタンを押した時点の値へ、
+全プレイヤーのローカルで規定秒数かけてフェード</strong>させるモードです。
+本番中に複数のフェーダーをあらかじめ仕込んでおき、キッカケで一斉に転換する用途を想定しています。</p>
+<ul>
+<li><strong>モード切替</strong>: <strong>2 値スライダー</strong>（<code>delayedModeSlider</code>。0=OFF / 1=ON、起動時に
+WholeNumbers・0〜1 へ自動設定）で ON/OFF を切り替えます（オーナーのみ操作可、状態は全員に同期）。
+OnValueChanged に <code>OnDelayedModeSliderChanged</code> を割り当てます。
+<ul>
+<li>ON 中はフェーダー操作・シーンプリセット呼出に加え、<strong>色・サイズの変更や設定リセットも
+ライトへ反映されず、確定待ち</strong>になります（確定時: 明るさは設定秒数フェード、色は約 2 秒
+フェード、サイズは即時反映）。</li>
+<li>ON 中も A/B クロスフェードは使用できます。クロスフェードは常に<strong>現在の表示値</strong>から
+新アクティブ系統のフェーダー値へフェードするため、未確定の仕込みがあっても点灯が
+飛びません（確定フェードとクロスフェードは同時には実行できず、実行中はもう一方の
+操作が無視されます）。</li>
+<li>OFF に戻すと、未確定のフェーダー値・保留中のプリセット色が即時反映されます。</li>
+</ul>
+</li>
+<li><strong>確定</strong>: 現在のアクティブ側フェーダー値を確定し、全プレイヤーのローカルで
+設定秒数かけてフェードします。フェード完了時にオーナーが同期値を書き込むため、
+後から入ったプレイヤーにも最終状態が反映されます。フェード中の再確定も可能です
+（現在の表示値から新しい目標へ滑らかに繋がります）。</li>
+<li><strong>変更前に戻す</strong>: 確定前に仕込んだフェーダー・色・サイズの保留を破棄し、<strong>実際に照明へ
+反映されている状態へフェーダーを戻します</strong>（確定はしません）。仕込みをやり直したいときの
+キャンセル用です。ボタンの OnClick に <code>OnDelayedRevertButtonClicked</code> を割り当て、
+<code>delayedRevertButton</code> に設定します（<code>delayedControlsPanel</code> 内に置けばモード ON 時のみ表示）。</li>
+<li><strong>反映秒数</strong>: <code>MashiroFadeDurationButtonHandler</code> を付けたボタンで選択します（例: 1 / 3 / 5 / 10 秒）。
+選択中のボタンは UI カラー規約（#E85900）でハイライトされます。</li>
+</ul>
+<h3 id="ui-セットアップ-1">UI セットアップ</h3>
+<ol>
+<li>モード切替用の 2 値スライダーを配置し、OnValueChanged に
+<code>MashiroLightingManager.OnDelayedModeSliderChanged</code>（UdonBehaviour → SendCustomEvent）を
+割り当て、<code>delayedModeSlider</code> に設定します。</li>
+<li>確定用の Button を配置し、OnClick に <code>OnDelayedCommitButtonClicked</code> を割り当て、
+<code>delayedCommitButton</code> に設定します。「変更前に戻す」用 Button は <code>OnDelayedRevertButtonClicked</code>
+を割り当て、<code>delayedRevertButton</code> に設定します。</li>
+<li>秒数ボタンをオペレーションボード配下に必要な数だけ配置し、それぞれに
+<code>MashiroFadeDurationButtonHandler</code> を付与して <code>lightingManager</code> と <code>durationSeconds</code> を設定、
+OnClick にハンドラの <code>OnClick</code> を割り当てます（ラベルは自動で「◯秒」になります）。</li>
+<li>確定・変更前に戻す・秒数ボタンをまとめた GameObject を <code>delayedControlsPanel</code> に設定すると、
+モード ON のときだけ表示されます。<code>delayedDurationLabel</code> を設定すると現在の秒数が表示されます。</li>
+</ol>
+<h2 id="シーンプリセット">シーンプリセット</h2>
+<p>エディタで作った点灯状態（各グループの明るさ・色）を <code>MashiroLightScenePreset</code> として登録し、
+VRC 内でボタンひとつでフェーダーへ呼び出せる機能です。</p>
+<ul>
+<li><strong>登録（エディタ）</strong>: 照明コントロールウィンドウ（後述）で各グループをテスト点灯させ、
+プリセット名を入力してから「現在の状態を登録」を押すと、<code>MashiroLightingManager</code> の子に
+プリセットオブジェクトが作成されます（名前が空のあいだ、登録ボタンは非活性です）。
+テスト点灯中のグループはその明るさ・色、消灯中のグループは明るさ 0 で保存されます。</li>
+<li><strong>呼出（VRC 内）</strong>: UI ボタンの OnClick に <code>MashiroLightScenePreset.OnButtonClick</code> を割り当てると、
+アクティブ側フェーダーがプリセット値に変わり、色も適用されます（オーナーのみ操作可）。
+<ul>
+<li><strong>通常モード</strong>: フェーダーが <code>presetFadeDuration</code>（既定 2 秒）かけて目標値まで動き、
+照明もフェーダーに追従してフェードします。<strong>アニメーション中はフェーダーが非活性</strong>になり、
+完了すると操作可能に戻ります（クロスフェード中の呼出は無視されます）。</li>
+<li><strong>遅延実行モード中</strong>: フェーダーだけが即時に動き、<strong>確定で反映</strong>されます。</li>
+</ul>
+</li>
+<li>プリセットはグループ名で照合します。グループをリネームした場合は該当エントリがスキップされ、
+Console に Warning が出ます（プリセットの上書き保存で追従できます）。</li>
+</ul>
+<h2 id="ランタイムプリセットスロットvrc-内で登録読込削除">ランタイムプリセットスロット（VRC 内で登録・読込・削除）</h2>
+<p>VRC 内で<strong>現在の照明状態を空きスロットに登録</strong>し、あとから<strong>読込</strong>・<strong>削除</strong>できる機能です。
+本番中に作った状態をその場で保存しておく用途を想定しています。</p>
+<ul>
+<li><strong>スロット構成</strong>: <code>presetSlotCount</code> で総数を決めます。<code>MashiroLightingManager</code> の子階層にある
+<code>MashiroLightScenePreset</code> が<strong>件数ぶん先頭から「保護スロット」を占有</strong>し、残りがランタイム
+登録用の空きスロットになります（プリセット 3 件・<code>presetSlotCount</code> 5 なら、保護 3 + 空き 2）。
+プリセット件数が <code>presetSlotCount</code> を超えると Console に Warning が出て、超過分は
+読み込まれません。</li>
+<li><strong>登録は共通ボタン</strong>（<code>registerPresetButton</code>）で行い、<strong>最小の空きスロットへ新規保存</strong>します。
+スロットが満杯だと登録ボタンは非活性になります（スロット数以上は登録不可）。色は
+<strong>パレット番号</strong>で保存し、登録時に各グループの色を最も近いパレット色へ丸めます。</li>
+<li><strong>各スロットのボタンは「読込・削除」の 2 種</strong>で、<strong>使わないボタンは非表示</strong>になります。
+<ul>
+<li><strong>空きスロット</strong>: 何も表示しません。</li>
+<li><strong>ランタイム登録済</strong>: 読込・削除を表示。</li>
+<li><strong>保護スロット（アップロード時に設定済み）</strong>: <strong>読込のみ表示</strong>、削除は非表示。</li>
+</ul>
+</li>
+<li><strong>削除は前詰め</strong>: スロットを削除すると、それ以降のランタイム登録スロットが 1 つ前へ詰まり、
+途中に空きの穴ができません（保護スロットは先頭に固定されたまま動きません）。</li>
+<li><strong>登録スロットの自動命名</strong>: 点灯中（明るさ &gt; 0）のグループのうち<strong>先頭のライト名</strong>をとり、
+<strong>「〇〇 他N灯」</strong>（N＝先頭以外の点灯数）と自動で名付けます（1 灯だけなら「〇〇」、
+全消灯なら「（消灯）」）。名前は同期せず各クライアントで同じ内容から算出されます。</li>
+<li><strong>読込</strong>: 「読込」で全グループのフェーダー・色へ反映します（通常モードは
+<code>presetFadeDuration</code> でフェード、遅延実行モード中は確定まで保留、という呼出仕様は
+シーンプリセットと同じ）。</li>
+<li>操作はオーナーのみ・全員に同期します。<strong>登録内容はインスタンス内でのみ有効</strong>で、全員が
+退出してインスタンスが消えると失われます（保護スロットは毎回復活します）。</li>
+</ul>
+<h3 id="ui-セットアップ-2">UI セットアップ</h3>
+<p><code>MashiroLightingManager</code> に以下を割り当てます（未割り当てなら機能は無効）。</p>
+<ul>
+<li><code>presetSlotCount</code> … 総スロット数（保護＋空きの合計）</li>
+<li><code>presetSlotPrefab</code> … スロット 1 個分のプレハブ。<code>MashiroLightPresetSlotHandler</code> を付け、
+<code>loadButton</code>（読込）/ <code>deleteButton</code>（削除）/ <code>label</code> を設定。各ボタンの OnClick には
+ハンドラの <code>OnLoadClick</code> / <code>OnDeleteClick</code> を割り当てます。</li>
+<li><code>presetSlotParent</code> … スロットを並べる親（実行時にスロット数ぶん自動生成）</li>
+<li><code>registerPresetButton</code> … 共通の登録ボタン。OnClick に <code>RegisterCurrentToSlot</code> を割り当て</li>
+<li><code>presetSlotStatusLabel</code> … 使用状況（例: 3/8）を表示する任意ラベル</li>
+</ul>
+<h2 id="照明コントロールウィンドウエディタ機能">照明コントロールウィンドウ（エディタ機能）</h2>
+<p>メニュー <strong>Tools &gt; Mashiro Theater &gt; Lighting Control</strong> から開きます。
+シーン内の全 <code>MashiroLightGroup</code> を一覧化し、Play モードに入らずにまとめて制御できます。</p>
+<ul>
+<li><strong>プレビュー</strong>: 色選択パネル風のタイルで各グループの現在の点灯色（色 × 明るさ）を一覧表示します。
+タイルをクリックするとヒエラルキー上で選択されます。</li>
+<li><strong>一覧行</strong>: 現在色スウォッチ / グループ名（クリックで選択）/ テスト明るさスライダー /
+色（<code>initialColor</code> の編集、点灯中は即時反映）/ 点灯テストのトグル。</li>
+<li><strong>全点灯 / 全消灯</strong>: ツールバーから一括操作できます。</li>
+<li><strong>シーンプリセット</strong>: 登録・選択・読込（テスト点灯で再現）・上書き・削除ができます。
+「選択」を押すとそのプリセットオブジェクトがヒエラルキーで選択・Ping されます。
+一覧の名前欄はそのまま編集でき、<strong>プリセット名をいつでも変更</strong>できます
+（表示名と GameObject 名の両方が更新されます。呼出はグループ名照合のため、
+プリセット名の変更は動作に影響しません）。</li>
+<li>点灯操作はインスペクタの「点灯テスト」と同じ非破壊プレビューの仕組みを共有しています
+（テスト明るさも共有。Play 突入時などに自動で全解除されます）。</li>
+</ul>
+<h2 id="プレビューパネルランタイム機能">プレビューパネル（ランタイム機能）</h2>
+<p>各照明グループについて、<strong>編集中系統（A/B）の想定明るさ・色</strong>をタイル風の見た目で表示する
+機能です。「今どう点いているか」ではなく「編集している系統がどう点く予定か」を示すため、
+<strong>待機系統を編集していても、遅延実行モード中でも、色・明るさの変更が即座にプレビューへ
+反映されます</strong>（実際の点灯状態は下記の実明るさメーターで別途確認できます）。
+表示方法は 2 通りあり、併用もできます（どちらもタイル色は「編集系統の色 × 編集系統フェーダー値」で、
+編集系統の切替・色変更時に即時、通常時は約 0.1 秒ごとに更新されます）。</p>
+<h3 id="a-フェーダーグループ内タイル推奨">A. フェーダーグループ内タイル（推奨）</h3>
+<p>FaderGroup プレハブ内にプレビュータイルを組み込む方式です。</p>
+<ol>
+<li>FaderGroup プレハブ内の任意の位置に <code>Image</code> を追加します（<strong>Raycast Target は OFF 推奨</strong>）。</li>
+<li>その Image を <code>MashiroIntensitySlidersHandler</code> の <code>previewImage</code> に設定します
+（<strong>明るさ × 色</strong>を反映）。未設定のグループでは何も表示されません（任意機能）。</li>
+<li>別途「色のみ」を反映する小さな丸インジケーターを置きたい場合は、その Image を
+<code>colorIndicatorImage</code> に設定します。<strong>明るさは反映せず色だけ</strong>を表示します
+（明るさ 0 でも色が見えます。任意）。</li>
+</ol>
+<h3 id="待機系統遅延実行モード中の表示">待機系統・遅延実行モード中の表示</h3>
+<p>プレビューは常に<strong>編集中系統の想定値</strong>（<code>GetBankColor(編集系統) × 編集系統フェーダー値</code>）を
+表示します。したがって、ライブ系統（点灯中）とは別の待機系統を編集していても、また遅延実行
+モードで確定前でも、色・明るさの変更がそのままプレビューに出ます。実際の点灯状態（ライブ）は
+下記の実明るさメーターで確認してください。色・フェーダー値は A/B 系統ごとに全員へ同期される
+ため、非オーナーのプレビューも同じ想定値を表示します。</p>
+<h3 id="実明るさメーター任意">実明るさメーター（任意）</h3>
+<p>フェーダーの隣に「実際の明るさ」を表示するメーターです。遅延実行モード中に、
+現在の明るさ（メーター）と次の明るさ（フェーダー）を見比べる用途を想定しています。</p>
+<ol>
+<li>FaderGroup プレハブ内に縦のバー用 <code>Image</code> を追加し、<strong>Image Type = Filled /
+Fill Method = Vertical</strong> に設定して <code>MashiroIntensitySlidersHandler</code> の
+<code>meterFillImageA</code> に割り当てます（バーの色はプレハブ側で自由に設定）。</li>
+<li>任意で数値表示用の TextMeshProUGUI を <code>meterValueLabelA</code> に割り当てると、
+実際の明るさが 0〜100 の整数で表示されます。</li>
+<li>レイアウトの都合で A/B 両方のコンテナにメーターを置きたい場合は、
+<code>meterFillImageB</code> / <code>meterValueLabelB</code> にもう 1 組を割り当てます
+（<strong>両方とも同じ実明るさ</strong>を表示します。片方だけの設定でも動作します）。</li>
+<li>いずれもクロスフェード・確定フェードの途中経過に約 0.1 秒周期で追従します。</li>
+</ol>
+<h3 id="フェーダー値の数値表示ab-共通任意">フェーダー値の数値表示（A/B 共通・任意）</h3>
+<p>「実際の明るさ」ではなく、**編集系統のフェーダーが指す値（設定値, 0〜100）**を表示するラベルです。
+A/B で 1 つの TMP を共通利用したいとき（レイアウトの都合で数値の位置を固定したいとき）に使います。</p>
+<ul>
+<li><code>MashiroIntensitySlidersHandler</code> の <code>intensityValueLabel</code> に TextMeshProUGUI を割り当てます。</li>
+<li>表示内容は<strong>編集系統のフェーダー値</strong>で、編集系統を切り替えると自動的にその系統の値へ
+切り替わります（フェーダー操作・プリセット呼出・同期でも更新）。</li>
+<li>実際の点灯明るさ（上記メーター）とは別物です。遅延実行モード中は「次の値（仕込み）」に
+相当し、実明るさはメーターで確認できます。</li>
+</ul>
+<h4 id="縦グラデーション表示任意">縦グラデーション表示（任意）</h4>
+<p>バーを下から上へグラデーションさせたい場合は、同梱の
+<code>MashiroUIVerticalGradient.shader</code>（シェーダー名 <strong>Mashiro Theater/UI/Vertical Gradient</strong>）
+を使ったマテリアルを作成し、バー用 Image の <strong>Material</strong> に割り当てます。
+オレンジ系のマテリアル <code>MashiroUIVerticalGradientOrange.mat</code> を同梱しており、<code>FaderGroup.prefab</code>
+では既定でこれを使っています。</p>
+<ul>
+<li>UI/Default にグラデーション乗算を 1 つ足しただけの軽量シェーダーで、
+Mask / RectMask2D にも標準どおり対応します。</li>
+<li>色はマテリアルの <strong>Bottom Color / Top Color</strong> で指定します（既定はオレンジ系）。</li>
+<li>グラデーションはバー全体に固定され、フィルが増えるほど上側の色が現れます。</li>
+<li>注意: スプライトを SpriteAtlas に入れると UV がずれてグラデーション位置が
+崩れます。スプライトなし（None）か、アトラス化していないスプライトで使ってください。</li>
+</ul>
+<h3 id="b-独立パネル自動生成">B. 独立パネル（自動生成）</h3>
+<ol>
+<li>タイルのプレハブを作成します（ルートに <code>Image</code>、任意で子に TextMeshProUGUI のラベル。
+Button は不要です）。</li>
+<li><code>MashiroLightingManager</code> の <code>previewTilePrefab</code> にプレハブ、<code>previewTileParent</code> に
+タイルを並べる親（Grid Layout Group 推奨）を設定します。</li>
+<li>実行時にグループ数ぶんのタイルが自動生成され、ラベルにはグループ名が入ります。</li>
+</ol>
+<h2 id="完全暗転ランタイム機能">完全暗転（ランタイム機能）</h2>
+<p>黒箱（<code>_Common/Shaders/TwoSidedOverlay</code> シェーダー）の透明度 <code>_Alpha</code> を上げて画面を暗転
+させる機能です。Timeline ではなく Udon の Update でローカル制御し、<strong>複数の黒箱を 1 つの
+制御でまとめて動かす</strong>ため多重暗転になりません。</p>
+<ul>
+<li><strong>動作（トグル）</strong>: ボタンを押すとフェードして暗転、もう一度押すとフェードして復帰します。
+暗転の保持時間は自由（次のキッカケまで暗転のままにできます）。フェード秒数はボタンごとに設定。</li>
+<li><strong>多重防止</strong>: 暗転中は<strong>暗転を開始したボタンのみ</strong>が操作可能（復帰用）で、他の暗転ボタンは
+無効化されます。フェード中は全ボタン無効。</li>
+<li>オーナー操作・全員に同期します。後から入ったプレイヤーは、暗転中ならフェードなしで即座に
+暗転状態で参加します。</li>
+<li><strong>暗転中表示</strong>: <code>blackoutIndicators</code>（GameObject 配列・複数可）を設定すると、<strong>完全に
+暗転している間のみ</strong>表示されます（フェードイン/アウト中は非表示。オペレータ向けの状態表示）。</li>
+</ul>
+<h3 id="ui-セットアップ-3">UI セットアップ</h3>
+<ol>
+<li>暗転用の黒箱（<code>TwoSidedOverlay</code> マテリアルの Renderer）をシーンに用意し、
+<code>MashiroLightingManager</code> の <code>blackoutBoxes</code> に複数まとめて割り当てます
+（透明度は同シェーダーの <code>_Alpha</code> を決め打ちで制御します）。</li>
+<li>暗転ボタンをボードに必要な数だけ配置し、それぞれに <code>MashiroBlackoutButtonHandler</code> を付与、
+<code>lightingManager</code> と <code>fadeDuration</code>（フェード秒数。「一瞬」は 0 に近い値）・<code>displayName</code> を
+設定します。OnClick にハンドラの <code>OnClick</code> を割り当てます（ラベルは自動で表示名になります）。</li>
+<li>任意で <code>blackoutIndicators</code> に暗転中表示オブジェクトを（複数）割り当てます。</li>
+</ol>
+<h2 id="realtime-ライト数の表示ランタイム機能">Realtime ライト数の表示（ランタイム機能）</h2>
+<p>現在使用中（Intensity が 0 でない＝ライトの GameObject が有効化されている）の Realtime ライトの
+合計数を表示し、しきい値を超えたら色で注意・警告を出す機能です。負荷の目安として使います。</p>
+<ul>
+<li>各 <code>MashiroLightGroup</code> が自グループの Light 数をスキャン時に保持し、マネージャが
+「点灯中グループのライト数の合計」を約 0.1 秒ごとに集計します（クロスフェード・
+遅延フェード中の点灯/消灯もリアルタイムに追従。表示の書き換えは値が変化した時のみ）。</li>
+<li>しきい値は <code>lightCountCautionThreshold</code>（既定 3、この数以上で注意色）/
+<code>lightCountWarningThreshold</code>（既定 4、この数以上で警告色）で変更できます。</li>
+<li>表示例: <code>Realtimeライト: 2</code>（通常色・白）/ <code>Realtimeライト: 3（注意）</code>（黄）/
+<code>Realtimeライト: 4（警告）</code>（赤）。各色は <code>lightCountNormalColor</code> /
+<code>lightCountCautionColor</code> / <code>lightCountWarningColor</code> で変更できます。</li>
+</ul>
+<h3 id="ui-セットアップ-4">UI セットアップ</h3>
+<p>TextMeshProUGUI のラベルをボード上に配置し、<code>MashiroLightingManager</code> の
+<code>realtimeLightCountLabel</code> に設定するだけです（未設定なら何もしません）。</p>
+<h2 id="フェーダーグループ全体の選択ボタン化">フェーダーグループ全体の選択ボタン化</h2>
+<p>照明グループの選択は、<strong>フェーダー列そのものを押して行います</strong>。FaderGroup のルートに
+Button + Image を置き、<code>MashiroIntensitySlidersHandler</code> の <code>selectButton</code> に割り当てて
+<strong>グループ全体をボタン化</strong>する構成です（OnClick には <code>OnSelectButtonClicked</code> を割り当てます）。
+グループ選択用の独立したボタン列はありません。</p>
+<ul>
+<li><strong>非選択時の配色は Button に設定した初期状態（ColorBlock）を起動時に自動取得</strong>し、
+そのまま使います（Inspector の専用フィールドはありません）。選択時のみ選択色
+（マネージャの <code>faderSelectedColor</code>。規約どおり #E85900）を適用し、hover / press 色は
+選択色から自動派生させるため、黒ベースでも白く光りません。非選択に戻ると初期の配色へ
+まるごと復元されます。ルートの Image は白 1 色のスプライトにして、Button の
+Color Tint（Normal Color = #000000 など）で着色してください。</li>
+<li><strong>選択中アウトライン（任意）</strong>: ルートの Image に <code>Outline</code> コンポーネントを付けて
+<code>selectionOutline</code> に割り当てると、<strong>選択中のみ</strong>アウトライン
+（マネージャの <code>faderSelectionOutlineColor</code>。規約どおり #E85900）でハイライトされます。
+非選択時は Outline が無効化され通常の見た目のままです。太さ（Effect Distance）は
+プレハブ側の設定値がそのまま使われるため、Outline コンポーネント上で調整してください。</li>
+<li><strong>選択中の背景色（任意）</strong>: <code>selectionImage</code> に背景の Image を割り当てると、
+Button の Color Tint とは独立に、選択中のみその Image を選択色で
+直接着色します（非選択時は初期色へ自動復元）。Button の Target Graphic が背景以外
+（小さなインジケータ等）を向いている構成でも背景色を変えられます。
+Target Graphic と同じ Image を指定すると Tint と乗算になるため避けてください。
+<code>selectionImage</code> を設定した場合、Button の ColorBlock には触れません。</li>
+</ul>
+<h3 id="テーマカラーの集約">テーマカラーの集約</h3>
+<p>デザイン統一のため、指定可能な色は <code>MashiroLightingManager</code> に集約されています。
+フェーダーグループ（生成プレハブ）側の色フィールドは廃止し、起動時にマネージャから
+一括配布されます。</p>
+<table>
+<thead>
+<tr>
+<th>Manager のフィールド</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>faderSelectedColor</code></td>
+<td>フェーダーグループ選択時のボタン/背景色</td>
+</tr>
+<tr>
+<td><code>faderSelectionOutlineColor</code></td>
+<td>フェーダーグループ選択時のアウトライン色</td>
+</tr>
+<tr>
+<td><code>activeImageColor</code> / <code>inactiveImageColor</code></td>
+<td>A/B 丸インジケータの点灯/消灯色</td>
+</tr>
+<tr>
+<td><code>editBankColorA</code> / <code>editBankColorB</code></td>
+<td>編集中アウトラインの色（A=オレンジ / B=シアン）</td>
+</tr>
+<tr>
+<td><code>lightCountNormalColor</code> / <code>lightCountCautionColor</code> / <code>lightCountWarningColor</code></td>
+<td>Realtime ライト数の表示色</td>
+</tr>
+</tbody>
+</table>
+<p>UI カラー規約で固定の配色（通常ボタン #000000 / 選択 #E85900 / テキスト #FFFFFF・#999999）は
+規約どおり各所でハードコードされており、テーマカラーの対象外です。</p>
+<h2 id="ab-系統1-列表示編集系統の切替">A/B 系統（1 列表示・編集系統の切替）</h2>
+<p>フェーダーは <strong>1 列表示</strong>で、表示・編集する系統（A / B）を切り替えて使います。A/B には
+明るさ・<strong>色</strong>・<strong>サイズ</strong>を別々に保持し、クロスフェードで系統ごと転換します。用語は 2 つ:</p>
+<ul>
+<li><strong>編集系統</strong>: いま UI に表示・編集している系統。編集系統スライダーで切り替え。</li>
+<li><strong>ライブ系統</strong>: いま実際に点灯している系統。クロスフェード実行で切り替え（＝転換）。</li>
+</ul>
+<h3 id="編集系統の切替editbankslider">編集系統の切替（<code>editBankSlider</code>）</h3>
+<ul>
+<li><code>editBankSlider</code>（<strong>0=A / 1=B</strong>、起動時に WholeNumbers・0〜1 へ自動設定）を割り当て、
+OnValueChanged に <code>OnEditBankSliderChanged</code> を設定します（オーナーのみ操作可・全員に同期）。</li>
+<li>切り替えると、フェーダー・<strong>色・サイズ</strong>の編集対象がその系統の値に切り替わります
+（A/B で別々に保持）。編集系統が<strong>ライブ系統</strong>のときは変更が即座に照明へ反映され、
+<strong>待機系統</strong>のときは保持のみ（点灯は変わりません）。</li>
+<li>FaderGroup プレハブ側で、各スライダーを包むオブジェクトを
+<code>MashiroIntensitySlidersHandler</code> の <code>sliderAContainer</code> / <code>sliderBContainer</code> に設定すると、
+編集系統のフェーダーだけが表示されます。</li>
+</ul>
+<h3 id="編集中の明示アウトライン">編集中の明示（アウトライン）</h3>
+<ul>
+<li><code>editFaderAreaOutline</code>（フェーダーエリア）に <code>Outline</code> を割り当てると、<strong>編集系統に応じて
+色が切り替わります</strong>（A=<code>editBankColorA</code>／既定オレンジ、B=<code>editBankColorB</code>／既定シアン）。
+常時表示で色のみ変化、太さはプレハブ側の Effect Distance を使います。</li>
+<li>クロスフェードボタン（<code>A → B</code> などの実行ボタン）の枠色は<strong>色替えの対象外</strong>です（演出上
+固定にするため）。枠の色はプレハブ側の <code>Outline</code> で自由に設定してください。</li>
+</ul>
+<h3 id="ライブ系統の明示--クロスフェード点灯切替">ライブ系統の明示 &amp; クロスフェード（点灯切替）</h3>
+<ul>
+<li><code>sliderAImage</code> / <code>sliderBImage</code>（クロスフェード枠の丸インジケータ）が、ライブ系統側だけ
+<code>activeImageColor</code>（点灯）になります。切り替えは<strong>クロスフェード開始時点</strong>で即時反映。</li>
+<li><code>bankALiveLabel</code> / <code>bankBLiveLabel</code>（任意）は<strong>ライブ系統の行にのみ</strong>「LIVE」表記を表示します。</li>
+<li><code>crossfadeButtonLabel</code> は <strong>「A → B」/「B → A」</strong>（ライブ → 待機）を自動表示します。</li>
+<li><strong>クロスフェード実行</strong>（<code>crossfadeButton</code> → <code>OnCrossfadeButtonClicked</code>）で、ライブ系統が
+切り替わり、<strong>明るさに加えて色・サイズも新ライブ系統の値へ</strong>切り替わります
+（色は約 2 秒フェード、サイズは即時）。</li>
+<li><strong>クロスフェードの秒数</strong>は <code>crossfadeDuration</code>（既定 1.5 秒）で設定します。明るさはこの秒数
+かけて各クライアントのローカルで補間されます。</li>
+</ul>
+<h3 id="運用">運用</h3>
+<ul>
+<li>編集系統はクロスフェードしても自動では切り替わりません（明示操作のみ）。
+<ul>
+<li>待機系統を編集 → <strong>クロスフェード</strong>で転換（従来の卓運用）</li>
+<li>ライブ系統を編集（遅延実行モード）→ <strong>確定</strong>で転換</li>
+</ul>
+</li>
+</ul>
+<h2 id="オペレーター-ui-の折りたたみランタイム機能">オペレーター UI の折りたたみ（ランタイム機能）</h2>
+<p><code>MashiroConsoleFoldToggle</code> は、フェーダー等のオペレーター UI グラフィックをまとめて
+表示/非表示できるトグルです。<strong>SetPassCall 削減</strong>が目的で、オペレーターや卓を見たい
+スタッフは展開、それ以外の観客はデフォルト折りたたみ、という運用を想定しています。</p>
+<ul>
+<li><strong>ローカル専用</strong>: 折りたたみ状態は同期しません。各自が自分の視界だけを畳みます
+（同期すると一人が畳んだだけで全員から消えてしまうため）。</li>
+<li><strong>初期状態</strong>: <code>startExpanded</code>（既定 false ＝折りたたみ）で決めます。観客中心の世界では
+false のままにしておくと、入室時点では畳まれた状態になります。</li>
+<li><strong>レイアウトのプライミング</strong>: 動的生成フェーダーは「最初の 1 回だけ」レイアウトが組み直る
+ため、そのまま表示すると初回だけ表示がガタッと動きます。<code>primeLayoutOnStart</code>（既定 true）が
+ON のとき、<strong>初期状態（ON/OFF）にかかわらず</strong>読込中（操作前）に一度だけ対象を展開して
+レイアウトを確定させます。
+<ul>
+<li><strong>初期折りたたみ</strong>: 展開 →（確定）→ <code>primeFrames</code> フレーム後に畳む。</li>
+<li><strong>初期展開</strong>: 展開 →（確定）→ 一瞬畳む → 次フレームで開き直す（＝クリーンな状態で表示）。
+最初から表示したい場合でも初回レイアウトずれが残りません（開き直しの一瞬の畳みは、
+スポーン地点の目前でなければ通常気になりません）。</li>
+<li><code>primeFrames</code>（既定 3）は Manager 側のレイアウト再構築（生成の次フレーム）が走り終わる
+猶予を確保する値で、通常は既定のままで問題ありません。プライミング自体が不要な
+（動的生成でない）UI では <code>primeLayoutOnStart</code> を false にできます。</li>
+</ul>
+</li>
+</ul>
+<h3 id="安全な対象の選び方重要">安全な対象の選び方（重要）</h3>
+<p><code>foldTargets</code> には <strong>純粋な UI グラフィックのオブジェクトだけ</strong>を割り当ててください。
+非表示（SetActive(false)）にした GameObject は毎フレームの <code>Update()</code> が回らず、Udon の
+<code>OnDeserialization</code>（同期受信）も取りこぼします。そのため次のものは<strong>絶対に対象へ含めない</strong>
+でください（含めるとフェード停止・暗転解除・同期漏れの事故になります）。</p>
+<ul>
+<li><code>MashiroLightingManager</code> … クロスフェード・遅延・暗転フェードをローカル Update で駆動</li>
+<li>ライト本体（<code>MashiroLightGroup</code> / <code>Light</code>）… 消灯・色トランジション停止</li>
+<li>暗転の黒箱（<code>blackoutBoxes</code> の Renderer）… その視点だけ暗転が解除される</li>
+</ul>
+<p>これらはトグル対象の階層の外（常時アクティブ）に置いてください。</p>
+<h3 id="ui-セットアップ-5">UI セットアップ</h3>
+<ol>
+<li>フェーダー群などの UI グラフィックを、Manager・ライト・黒箱を含まない親オブジェクトに
+まとめ、<code>MashiroConsoleFoldToggle</code> の <code>foldTargets</code> に割り当てます（複数可）。</li>
+<li>トグルボタンを<strong>折りたたみ対象の外</strong>に置き（畳んでもボタンは残す必要があるため）、
+OnClick にハンドラの <code>OnToggleClick</code> を割り当てます。</li>
+<li>任意で状態ラベル（<code>stateLabel</code>）と文言（<code>expandedLabel</code> / <code>collapsedLabel</code>）を設定します。</li>
+<li>観客向けに畳んだ状態で始めるなら <code>startExpanded</code> を false のままにします。</li>
+</ol>
+<h2 id="同期の仕組み仕様">同期の仕組み（仕様）</h2>
+<p>明るさ・色のフェードは<strong>各クライアントのローカルで実行</strong>され、ネットワークには
+<strong>確定値・目標値のみ</strong>を同期します（フェードの途中値は同期しません）。</p>
+<ul>
+<li><strong>明るさ</strong>: 同期されるのは確定値のみで、<strong>全グループ分を <code>MashiroLightingManager</code> が
+まとめて保持</strong>します（<code>MashiroLightGroup</code> は明るさを同期しません）。確定値は
+<strong>フェード開始の時点</strong>で書き込まれ、クロスフェード・確定フェードは各クライアントが
+ローカルで補間して同じ値へ着地します。フェード実行中は同期で届いた確定値を適用しません。</li>
+<li><strong>色</strong>: 同期されるのは目標色のみ。色の変化（約 2 秒フェード）は各クライアントの
+ローカルで実行します。</li>
+<li><strong>サイズ・回転・A/B 系統の保持値・フェーダー値</strong>: 値そのものを同期し、受信時に即時反映します。</li>
+<li>後から入ったプレイヤーは、受信した確定値・目標色をフェードなしで即時反映して現在の
+状態に合流します（暗転中なら即座に真っ暗になります）。フェード進行中に入室した場合は
+フェード後の確定値で合流します。</li>
+</ul>
+<blockquote>
+<p>明るさの確定値とフェード開始の合図を同じコンポーネントで同期しているため、両者は必ず
+同一パケットで届きます。片方だけが先に届いて「フェードせず切り替わる」「フェード後に
+古い値で一瞬戻る」といったことは起きません。</p>
+</blockquote>
+<h2 id="api-リファレンス">API リファレンス</h2>
+<h3 id="mashirolightingmanager"><code>MashiroLightingManager</code></h3>
+<p><strong>UI へ手配線するもの</strong></p>
+<table>
+<thead>
+<tr>
+<th>シグネチャ</th>
+<th>用途</th>
+<th>配線先</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OnCrossfadeButtonClicked()</code></td>
+<td>ライブ系統を転換（クロスフェード実行）</td>
+<td><code>crossfadeButton</code> の OnClick</td>
+</tr>
+<tr>
+<td><code>OnEditBankSliderChanged()</code></td>
+<td>編集系統 A/B の切替</td>
+<td><code>editBankSlider</code> の OnValueChanged</td>
+</tr>
+<tr>
+<td><code>OnDelayedModeSliderChanged()</code></td>
+<td>遅延実行モードの ON/OFF</td>
+<td><code>delayedModeSlider</code> の OnValueChanged</td>
+</tr>
+<tr>
+<td><code>OnDelayedModeToggleClicked()</code></td>
+<td>遅延実行モードのトグル（ボタン式で組む場合の代替）</td>
+<td>Button の OnClick</td>
+</tr>
+<tr>
+<td><code>OnDelayedCommitButtonClicked()</code></td>
+<td>仕込んだ変更を確定し全員へフェード反映</td>
+<td><code>delayedCommitButton</code> の OnClick</td>
+</tr>
+<tr>
+<td><code>OnDelayedRevertButtonClicked()</code></td>
+<td>仕込みを破棄して実際の状態へ戻す</td>
+<td><code>delayedRevertButton</code> の OnClick</td>
+</tr>
+<tr>
+<td><code>OnSizeSliderValueChanged()</code></td>
+<td>選択中グループのサイズ変更</td>
+<td><code>sizeSlider</code> の OnValueChanged</td>
+</tr>
+<tr>
+<td><code>OnPanSliderValueChanged()</code></td>
+<td>選択中グループの横回転（パン）</td>
+<td><code>panSlider</code> の OnValueChanged</td>
+</tr>
+<tr>
+<td><code>OnTiltSliderValueChanged()</code></td>
+<td>選択中グループの縦回転（チルト）</td>
+<td><code>tiltSlider</code> の OnValueChanged</td>
+</tr>
+<tr>
+<td><code>ResetSelectedLightGroup()</code></td>
+<td>選択中グループの色・サイズ・回転をリセット</td>
+<td><code>resetButton</code> の OnClick</td>
+</tr>
+<tr>
+<td><code>OnTakeOwnershipButtonClicked()</code></td>
+<td>操作権（オーナー）を取得</td>
+<td><code>takeOwnershipButton</code> の OnClick</td>
+</tr>
+<tr>
+<td><code>RegisterCurrentToSlot()</code></td>
+<td>現在の照明状態を空きスロットへ登録</td>
+<td><code>registerPresetButton</code> の OnClick</td>
+</tr>
+</tbody>
+</table>
+<p><strong>内部連携用（配線不要）</strong></p>
+<table>
+<thead>
+<tr>
+<th>シグネチャ</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SelectLightGroup(int index)</code></td>
+<td>グループ選択のトグル（フェーダー列のハンドラが呼ぶ）</td>
+</tr>
+<tr>
+<td><code>OnColorPresetSelected(int index)</code></td>
+<td>色プリセットの選択（色ボタンハンドラが呼ぶ）</td>
+</tr>
+<tr>
+<td><code>UpdateSelectedLightGroupColor(Color color)</code></td>
+<td>選択中グループへ色を反映（遅延実行モード中は保留）</td>
+</tr>
+<tr>
+<td><code>UpdateSelectedLightGroupSize(float sizeOffset)</code></td>
+<td>選択中グループへサイズを反映（遅延実行モード中は保留）</td>
+</tr>
+<tr>
+<td><code>CanLocalPlayerControl()</code></td>
+<td>ローカルプレイヤーが操作可能（=オーナー）かを返す</td>
+</tr>
+<tr>
+<td><code>GetColorPreset(int index)</code></td>
+<td>パレット番号から色を取得</td>
+</tr>
+<tr>
+<td><code>ApplyScenePreset(MashiroLightScenePreset preset)</code></td>
+<td>シーンプリセットを適用（プリセットボタンが呼ぶ）</td>
+</tr>
+<tr>
+<td><code>LoadPresetSlot(int slot)</code> / <code>DeletePresetSlot(int slot)</code></td>
+<td>ランタイムスロットの読込・削除（スロットハンドラが呼ぶ）</td>
+</tr>
+<tr>
+<td><code>ToggleBlackout(float fadeDuration, int buttonIndex)</code></td>
+<td>完全暗転のトグル（暗転ボタンハンドラが呼ぶ）</td>
+</tr>
+<tr>
+<td><code>SetDelayedFadeDuration(float seconds)</code></td>
+<td>確定フェードの反映秒数を設定（秒数ボタンハンドラが呼ぶ）</td>
+</tr>
+<tr>
+<td><code>SetLiveIntensity(int index, float value)</code></td>
+<td>1 グループの明るさ確定値を設定・反映・同期（フェーダー/プリセットから呼ぶ）</td>
+</tr>
+<tr>
+<td><code>UpdateColorSelectionUI()</code></td>
+<td>色選択ハイライトの再描画</td>
+</tr>
+<tr>
+<td><code>RefreshBankLayout()</code></td>
+<td>起動時のレイアウト組み直し（遅延イベント用）</td>
+</tr>
+<tr>
+<td><code>IsSliderAActive</code> / <code>IsDelayedModeEnabled</code></td>
+<td>ライブ系統が A か／遅延実行モード中か（プロパティ）</td>
+</tr>
+<tr>
+<td><code>OnDeserialization()</code></td>
+<td>同期受信時のコールバック。フェード開始判定と UI 反映（VRChat が呼ぶ／内部専用）</td>
+</tr>
+<tr>
+<td><code>OnOwnershipTransferred(VRCPlayerApi player)</code></td>
+<td>オーナー変更時のコールバック。操作権 UI の更新（VRChat が呼ぶ／内部専用）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mashirolightgroup-1"><code>MashiroLightGroup</code></h3>
+<p>すべて内部連携用（UI からの手配線は不要）。</p>
+<table>
+<thead>
+<tr>
+<th>シグネチャ</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SetColorWithFade(Color newColor)</code></td>
+<td>目標色を設定しローカルでフェード（同期は目標色のみ）</td>
+</tr>
+<tr>
+<td><code>SetBankColor(bool isA, Color color)</code> / <code>GetBankColor(bool isA)</code></td>
+<td>A/B 系統別の保持色の設定・取得</td>
+</tr>
+<tr>
+<td><code>SetSizeOffset(float offset)</code> / <code>GetSizeOffset()</code></td>
+<td>サイズオフセットの適用・取得</td>
+</tr>
+<tr>
+<td><code>SetBankSizeOffset(bool isA, float offset)</code> / <code>GetBankSizeOffset(bool isA)</code></td>
+<td>A/B 系統別の保持サイズの設定・取得</td>
+</tr>
+<tr>
+<td><code>SetPan(float pan)</code> / <code>SetTilt(float tilt)</code> / <code>GetPan()</code> / <code>GetTilt()</code></td>
+<td>回転の適用・取得</td>
+</tr>
+<tr>
+<td><code>GetMaxSizeOffset()</code> / <code>GetMaxRotationAngle()</code></td>
+<td>可動範囲定数の取得（スライダー範囲の設定用）</td>
+</tr>
+<tr>
+<td><code>Initialize(int index)</code></td>
+<td>起動時初期化（ライトのスキャン・初期値適用）</td>
+</tr>
+<tr>
+<td><code>SetSliderHandler(MashiroIntensitySlidersHandler handler)</code></td>
+<td>フェーダーハンドラの関連付け</td>
+</tr>
+<tr>
+<td><code>UpdateFromSlider(float value, bool isSliderA)</code></td>
+<td>フェーダー値の保持・同期</td>
+</tr>
+<tr>
+<td><code>ApplyIntensityDirect(float intensity)</code></td>
+<td>明るさを実ライトへ適用する唯一の入口（マネージャが呼ぶ。同期はしない）</td>
+</tr>
+<tr>
+<td><code>ResetToInitialValues()</code></td>
+<td>サイズ・回転・色を初期値へ戻す（現在は呼び出し元がない予約 API。卓の「リセット」は <code>MashiroLightingManager.ResetSelectedLightGroup()</code> が担当）</td>
+</tr>
+<tr>
+<td><code>GetName()</code></td>
+<td>グループ名（GameObject 名）</td>
+</tr>
+<tr>
+<td><code>GetDisplayIntensity()</code> / <code>GetDisplayColor()</code></td>
+<td>現在表示中の明るさ・色（フェード途中値を含む）</td>
+</tr>
+<tr>
+<td><code>GetInitialSize()</code></td>
+<td>ビルド時のスポット角（現在は呼び出し元がない予約 API）</td>
+</tr>
+<tr>
+<td><code>GetRealtimeLightCount()</code> / <code>AreLightsEnabled()</code></td>
+<td>Realtime ライト数／点灯中か</td>
+</tr>
+<tr>
+<td><code>OnDeserialization()</code></td>
+<td>同期受信時のコールバック。確定値の反映と色フェードの開始（VRChat が呼ぶ／内部専用）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mashirointensityslidershandler"><code>MashiroIntensitySlidersHandler</code></h3>
+<p><strong>UI へ手配線するもの（FaderGroup プレハブ内で設定）</strong></p>
+<table>
+<thead>
+<tr>
+<th>シグネチャ</th>
+<th>用途</th>
+<th>配線先</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OnSliderAValueChanged()</code> / <code>OnSliderBValueChanged()</code></td>
+<td>A/B フェーダーの操作</td>
+<td><code>sliderA</code> / <code>sliderB</code> の OnValueChanged</td>
+</tr>
+<tr>
+<td><code>OnSelectButtonClicked()</code></td>
+<td>グループ選択</td>
+<td><code>selectButton</code> の OnClick</td>
+</tr>
+</tbody>
+</table>
+<p><strong>内部連携用（配線不要）</strong></p>
+<table>
+<thead>
+<tr>
+<th>シグネチャ</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Initialize(MashiroLightingManager mgr, MashiroLightGroup group, int index)</code></td>
+<td>生成時初期化</td>
+</tr>
+<tr>
+<td><code>SetThemeColors(Color selectedColor, Color outlineColor)</code></td>
+<td>選択時テーマカラーの配布</td>
+</tr>
+<tr>
+<td><code>SetValueFromPreset(float value)</code></td>
+<td>プリセット呼出によるフェーダー値の設定</td>
+</tr>
+<tr>
+<td><code>SetSlidersInteractable(bool interactable)</code> / <code>SetOwnerControlEnabled(bool enabled)</code></td>
+<td>操作可否の切替</td>
+</tr>
+<tr>
+<td><code>UpdateSelectButtonUI(bool isSelected)</code> / <code>UpdateBankVisibility(bool showSliderA, bool showSliderB)</code></td>
+<td>選択・系統表示の更新</td>
+</tr>
+<tr>
+<td><code>UpdatePreviewColor(Color color)</code> / <code>UpdateColorIndicator(Color color)</code> / <code>UpdateMeter(float intensity)</code></td>
+<td>プレビュー・メーターの更新</td>
+</tr>
+<tr>
+<td><code>UpdateSliderUI(float valueA, float valueB)</code></td>
+<td>同期受信時のスライダー表示更新</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ボタンスロット系ハンドラ">ボタン・スロット系ハンドラ</h3>
+<table>
+<thead>
+<tr>
+<th>コンポーネント</th>
+<th>UI へ手配線するもの</th>
+<th>内部連携用（配線不要）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MashiroColorButtonHandler</code></td>
+<td><code>OnClick()</code> → プレハブ内 Button の OnClick</td>
+<td><code>Initialize(mgr, color, index)</code></td>
+</tr>
+<tr>
+<td><code>MashiroBlackoutButtonHandler</code></td>
+<td><code>OnClick()</code> → 暗転ボタンの OnClick</td>
+<td><code>Initialize(mgr, index)</code> / <code>SetInteractable(bool)</code></td>
+</tr>
+<tr>
+<td><code>MashiroFadeDurationButtonHandler</code></td>
+<td><code>OnClick()</code> → 秒数ボタンの OnClick</td>
+<td><code>UpdateSelectedUI(bool)</code> / <code>SetInteractable(bool)</code></td>
+</tr>
+<tr>
+<td><code>MashiroLightPresetSlotHandler</code></td>
+<td><code>OnLoadClick()</code> / <code>OnDeleteClick()</code> → プレハブ内 Button の OnClick</td>
+<td><code>Initialize(mgr, index)</code> / <code>UpdateDisplay(...)</code></td>
+</tr>
+<tr>
+<td><code>MashiroLightScenePreset</code></td>
+<td><code>OnButtonClick()</code> → プリセット呼出ボタンの OnClick</td>
+<td>（データ保持のみ）</td>
+</tr>
+<tr>
+<td><code>MashiroConsoleFoldToggle</code></td>
+<td><code>OnToggleClick()</code> → 折りたたみトグルの OnClick</td>
+<td><code>FinishPrimeLayout()</code> / <code>ReopenAfterPrime()</code>（遅延イベント用）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mashirolightfixtureエディタ専用"><code>MashiroLightFixture</code>（エディタ専用）</h3>
+<p>エディタ拡張から呼ばれる編集時マーカーです（手配線不要）:
+<code>SaveDefaultRotation()</code> / <code>EnsureDefaultRotation()</code> / <code>RestoreDefaultRotation()</code> /
+<code>SetPanTilt(float pan, float tilt)</code>、プロパティ <code>HasDefaultRotation</code> / <code>DefaultRotation</code> /
+<code>PanAngle</code> / <code>TiltAngle</code>。</p>
+<h2 id="付録-ui-参照フィールド早見表レイアウト対応">付録: UI 参照フィールド早見表（レイアウト対応）</h2>
+<p>インスペクタの参照名が実際の画面上のどの部品か分かりにくいため、対応をまとめます。
+「種別」は割り当てる Unity コンポーネント、「画面上」は見た目・位置の目安です。</p>
+<p>「必須／任意」は次の意味です。同梱の <code>MashiroLightingManager.prefab</code> を使う場合、<strong>必須の
+うち自分で設定するのは <code>lightGroupParent</code> だけ</strong>で、残りはプレハブ側で配線済みです。</p>
+<ul>
+<li><strong>必須</strong>: 未設定だと起動時の初期化が例外で止まり、卓が一切動かなくなります。</li>
+<li><strong>任意</strong>: 未設定なら、その機能だけが無効になります。</li>
+</ul>
+<h3 id="a-mashirolightingmanagerボード全体の統括">A. <code>MashiroLightingManager</code>（ボード全体の統括）</h3>
+<h4 id="基本参照">基本参照</h4>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>必須/任意</th>
+<th>種別</th>
+<th>画面上</th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lightGroupParent</code></td>
+<td>必須</td>
+<td>GameObject</td>
+<td>（非表示・シーン上の親）</td>
+<td>配下の <code>MashiroLightGroup</code> を自動収集する起点</td>
+</tr>
+<tr>
+<td><code>sliderPrefab</code></td>
+<td>必須</td>
+<td>GameObject</td>
+<td>（プレハブ）</td>
+<td>フェーダーグループ 1 列分の生成元</td>
+</tr>
+<tr>
+<td><code>sliderParent</code></td>
+<td>必須</td>
+<td>Transform</td>
+<td>フェーダーが横に並ぶ列の親</td>
+<td>生成したフェーダーグループの配置先</td>
+</tr>
+<tr>
+<td><code>colorButtonPrefab</code> / <code>colorButtonParent</code></td>
+<td>必須</td>
+<td>GameObject / Transform</td>
+<td>色ボタンの並ぶ領域</td>
+<td>色選択ボタンの生成元／配置先</td>
+</tr>
+<tr>
+<td><code>ownerNameText</code></td>
+<td>任意</td>
+<td>TMP</td>
+<td>「オペレーター名」表示</td>
+<td>現在のオーナー名</td>
+</tr>
+<tr>
+<td><code>selectedGroupLabel</code></td>
+<td>必須</td>
+<td>TMP</td>
+<td>選択中グループ名表示</td>
+<td>いま選択中の照明グループ名</td>
+</tr>
+<tr>
+<td><code>selectedColorLabel</code></td>
+<td>任意</td>
+<td>TMP</td>
+<td>選択中の色名表示</td>
+<td>いま選択中の色プリセット名</td>
+</tr>
+<tr>
+<td><code>takeOwnershipButton</code></td>
+<td>任意</td>
+<td>Button</td>
+<td>「操作権を取得」ボタン</td>
+<td>押すと操作権を自分に。自分がオーナーの時は自動で非表示</td>
+</tr>
+</tbody>
+</table>
+<h4 id="サイズ回転選択中グループへ適用">サイズ・回転（選択中グループへ適用）</h4>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>必須/任意</th>
+<th>種別</th>
+<th>画面上</th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sizeSlider</code> / <code>sizeSliderGameObject</code></td>
+<td>任意</td>
+<td>Slider / GameObject</td>
+<td>「サイズ」スライダーとその行</td>
+<td>スポット角 ±30 度オフセット。行は選択中のみ表示</td>
+</tr>
+<tr>
+<td><code>panSlider</code> / <code>panSliderGameObject</code></td>
+<td>任意</td>
+<td>Slider / GameObject</td>
+<td>「横回転」スライダーとその行</td>
+<td>パン ±30 度。行は選択中のみ表示</td>
+</tr>
+<tr>
+<td><code>tiltSlider</code> / <code>tiltSliderGameObject</code></td>
+<td>任意</td>
+<td>Slider / GameObject</td>
+<td>「縦回転」スライダーとその行</td>
+<td>チルト ±30 度。行は選択中のみ表示</td>
+</tr>
+<tr>
+<td><code>resetButton</code> / <code>resetButtonGameObject</code></td>
+<td>任意</td>
+<td>Button / GameObject</td>
+<td>「リセット」ボタンとその行</td>
+<td>色を <code>initialColor</code> へ戻し、サイズ・回転を 0 に戻す</td>
+</tr>
+</tbody>
+</table>
+<h4 id="ab-クロスフェード点灯系統の切替名前に注意">A/B クロスフェード（点灯系統の切替）※名前に注意</h4>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>必須/任意</th>
+<th>種別</th>
+<th>画面上</th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>crossfadeButton</code></strong></td>
+<td>任意</td>
+<td>Button</td>
+<td><strong>「A → B」/「B → A」実行ボタンそのもの</strong></td>
+<td>押すとライブ系統を切り替える（＝転換）</td>
+</tr>
+<tr>
+<td><code>crossfadeButtonLabel</code></td>
+<td>任意</td>
+<td>TMP</td>
+<td>上記ボタン内の文字</td>
+<td>「A → B」「B → A」を自動表示</td>
+</tr>
+<tr>
+<td><code>sliderAImage</code> / <code>sliderBImage</code></td>
+<td>必須</td>
+<td>Image</td>
+<td>A / B の丸インジケータ</td>
+<td>ライブ系統側が点灯色（<code>activeImageColor</code>）になる</td>
+</tr>
+<tr>
+<td><code>bankALiveLabel</code> / <code>bankBLiveLabel</code></td>
+<td>任意</td>
+<td>GameObject</td>
+<td>ライブ系統行の「LIVE」表記</td>
+<td>ライブ側の行にのみ表示</td>
+</tr>
+<tr>
+<td><code>crossfadeDuration</code></td>
+<td>（設定値）</td>
+<td>float</td>
+<td>—</td>
+<td>クロスフェードの秒数（既定 1.5）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>紛らわしさの注意</strong>: 「クロスフェードボタン」＝ <code>crossfadeButton</code>（上の実行ボタン本体）です。
+以前あった <code>editCrossfadeAreaOutline</code>（クロスフェード“エリア”を囲う枠）は削除済みで、
+<strong>実行ボタンの枠色はスクリプト管理外</strong>になりました。枠色はボタンの <code>Outline</code> で直接設定します。</p>
+</blockquote>
+<h4 id="編集系統の切替1-列表示">編集系統の切替（1 列表示）</h4>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>必須/任意</th>
+<th>種別</th>
+<th>画面上</th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>editBankSlider</code></td>
+<td>任意</td>
+<td>Slider</td>
+<td>「編集系統」2 値スライダー（0=A / 1=B）</td>
+<td>表示・編集する系統を切り替える</td>
+</tr>
+<tr>
+<td><code>editFaderAreaOutline</code></td>
+<td>任意</td>
+<td>Outline</td>
+<td><strong>フェーダーエリアを囲う枠</strong></td>
+<td>編集系統で色が変わる（A=<code>editBankColorA</code> / B=<code>editBankColorB</code>）</td>
+</tr>
+</tbody>
+</table>
+<h4 id="遅延実行モード">遅延実行モード</h4>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>必須/任意</th>
+<th>種別</th>
+<th>画面上</th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>delayedModeSlider</code></td>
+<td>任意</td>
+<td>Slider</td>
+<td>「遅延実行」2 値スライダー（0=OFF / 1=ON）</td>
+<td>遅延実行モードの ON/OFF</td>
+</tr>
+<tr>
+<td><code>delayedControlsPanel</code></td>
+<td>任意</td>
+<td>GameObject</td>
+<td>確定・秒数ボタンを含むパネル</td>
+<td>遅延実行モード中のみ表示</td>
+</tr>
+<tr>
+<td><code>delayedCommitButton</code></td>
+<td>任意</td>
+<td>Button</td>
+<td>「確定 / GO」ボタン</td>
+<td>仕込んだ変更を全員へフェード反映</td>
+</tr>
+<tr>
+<td><code>delayedRevertButton</code></td>
+<td>任意</td>
+<td>Button</td>
+<td>「変更前に戻す」ボタン</td>
+<td>仕込み（保留）を破棄して現状へ戻す</td>
+</tr>
+<tr>
+<td><code>delayedDurationLabel</code></td>
+<td>任意</td>
+<td>TMP</td>
+<td>フェード秒数の表示</td>
+<td>現在の反映秒数</td>
+</tr>
+</tbody>
+</table>
+<h4 id="プレビューパネル独立パネル">プレビューパネル（独立パネル）</h4>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>必須/任意</th>
+<th>種別</th>
+<th>画面上</th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>previewTilePrefab</code> / <code>previewTileParent</code></td>
+<td>任意</td>
+<td>GameObject / Transform</td>
+<td>色プレビューのタイル群</td>
+<td>各グループの明るさ×色タイルの生成元／配置先</td>
+</tr>
+</tbody>
+</table>
+<h4 id="ランタイムプリセットスロット">ランタイムプリセットスロット</h4>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>必須/任意</th>
+<th>種別</th>
+<th>画面上</th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>presetSlotPrefab</code> / <code>presetSlotParent</code></td>
+<td>任意</td>
+<td>GameObject / Transform</td>
+<td>プリセットスロットの並ぶ領域</td>
+<td>スロット UI の生成元／配置先</td>
+</tr>
+<tr>
+<td><code>registerPresetButton</code></td>
+<td>任意</td>
+<td>Button</td>
+<td>「登録」共通ボタン</td>
+<td>現在の状態を最小の空きスロットへ登録（満杯で自動無効化）</td>
+</tr>
+<tr>
+<td><code>presetSlotStatusLabel</code></td>
+<td>任意</td>
+<td>TMP</td>
+<td>「3/8」等の使用状況</td>
+<td>使用スロット数の表示</td>
+</tr>
+</tbody>
+</table>
+<h4 id="完全暗転--realtime-ライト数">完全暗転 / Realtime ライト数</h4>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>必須/任意</th>
+<th>種別</th>
+<th>画面上</th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>blackoutBoxes</code></td>
+<td>任意</td>
+<td>Renderer[]</td>
+<td>シーン中の黒箱（画面を覆う板）</td>
+<td>まとめて <code>_Alpha</code> を上げ下げして暗転</td>
+</tr>
+<tr>
+<td><code>blackoutIndicators</code></td>
+<td>任意</td>
+<td>GameObject[]</td>
+<td>「暗転中」オペレータ表示</td>
+<td>完全暗転中のみ表示（フェード中は非表示）</td>
+</tr>
+<tr>
+<td><code>realtimeLightCountLabel</code></td>
+<td>任意</td>
+<td>TMP</td>
+<td>「Realtimeライト: N」表示</td>
+<td>点灯中の Realtime ライト合計。しきい値で色変化</td>
+</tr>
+</tbody>
+</table>
+<h4 id="テーマカラー色はここに集約">テーマカラー（色はここに集約）</h4>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>faderSelectedColor</code></td>
+<td>フェーダーグループ選択時のボタン/背景色</td>
+</tr>
+<tr>
+<td><code>faderSelectionOutlineColor</code></td>
+<td>フェーダーグループ選択時のアウトライン色</td>
+</tr>
+<tr>
+<td><code>activeImageColor</code> / <code>inactiveImageColor</code></td>
+<td>A/B 丸インジケータの点灯/消灯色</td>
+</tr>
+<tr>
+<td><code>editBankColorA</code> / <code>editBankColorB</code></td>
+<td>編集系統アウトライン色（A=オレンジ / B=シアン）</td>
+</tr>
+<tr>
+<td><code>lightCountNormalColor</code> / <code>lightCountCautionColor</code> / <code>lightCountWarningColor</code></td>
+<td>Realtime ライト数の表示色</td>
+</tr>
+</tbody>
+</table>
+<h3 id="b-mashirointensityslidershandlerフェーダーグループ-1-列動的生成">B. <code>MashiroIntensitySlidersHandler</code>（フェーダーグループ 1 列＝動的生成）</h3>
+<p><code>sliderPrefab</code> 側に付けるハンドラ。1 グループ分の縦 1 列に対応します。</p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>必須/任意</th>
+<th>種別</th>
+<th>画面上</th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sliderA</code> / <code>sliderB</code></td>
+<td>必須</td>
+<td>Slider</td>
+<td>A / B 系統の明るさフェーダー</td>
+<td>系統ごとの明るさ。1 列表示では編集系統のみ見える</td>
+</tr>
+<tr>
+<td><code>sliderAContainer</code> / <code>sliderBContainer</code></td>
+<td>任意</td>
+<td>GameObject</td>
+<td>A / B フェーダーを包む枠</td>
+<td>編集系統のコンテナだけ表示（1 列表示の切替単位）</td>
+</tr>
+<tr>
+<td><code>labelText</code></td>
+<td>任意</td>
+<td>TMP</td>
+<td>列の下のグループ名</td>
+<td>グループ名（例: ピンスポット上手）</td>
+</tr>
+<tr>
+<td><code>selectButton</code></td>
+<td>任意</td>
+<td>Button</td>
+<td>列全体（グループ選択ボタン化）</td>
+<td>押すとそのグループを選択。未設定だとグループ選択ができなくなる</td>
+</tr>
+<tr>
+<td><code>selectionImage</code></td>
+<td>任意</td>
+<td>Image</td>
+<td>選択時に着色する背景</td>
+<td>選択中のみ選択色。Button の Tint とは独立</td>
+</tr>
+<tr>
+<td><code>selectionOutline</code></td>
+<td>任意</td>
+<td>Outline</td>
+<td>選択時のハイライト枠</td>
+<td>選択中のみ表示</td>
+</tr>
+<tr>
+<td><code>previewImage</code></td>
+<td>任意</td>
+<td>Image</td>
+<td>列内のプレビュータイル</td>
+<td><strong>明るさ × 色</strong>を反映</td>
+</tr>
+<tr>
+<td><code>colorIndicatorImage</code></td>
+<td>任意</td>
+<td>Image</td>
+<td>小さい丸インジケータ</td>
+<td><strong>色のみ</strong>反映（明るさは無視）</td>
+</tr>
+<tr>
+<td><code>meterFillImageA</code> / <code>meterFillImageB</code></td>
+<td>任意</td>
+<td>Image(Filled)</td>
+<td>実明るさメーター</td>
+<td>実際の明るさをバー表示（A/B どちらの列にも置ける）</td>
+</tr>
+<tr>
+<td><code>meterValueLabelA</code> / <code>meterValueLabelB</code></td>
+<td>任意</td>
+<td>TMP</td>
+<td>実明るさの数値</td>
+<td>実際の明るさ 0〜100</td>
+</tr>
+<tr>
+<td><code>intensityValueLabel</code></td>
+<td>任意</td>
+<td>TMP</td>
+<td>フェーダー下の設定値（A/B 共通）</td>
+<td>編集系統フェーダーの設定値 0〜100。系統切替で表示も切替</td>
+</tr>
+</tbody>
+</table>
+<h3 id="c-mashiroconsolefoldtoggleオペレーター-ui-の折りたたみ">C. <code>MashiroConsoleFoldToggle</code>（オペレーター UI の折りたたみ）</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>種別</th>
+<th>画面上</th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>foldTargets</code></td>
+<td>GameObject[]</td>
+<td>折りたたむ UI グラフィック群</td>
+<td>まとめて表示/非表示。Manager・ライト・黒箱は含めない</td>
+</tr>
+<tr>
+<td><code>stateLabel</code></td>
+<td>TMP</td>
+<td>トグルボタンの文字</td>
+<td>展開/折りたたみで文言切替</td>
+</tr>
+<tr>
+<td><code>startExpanded</code> / <code>primeLayoutOnStart</code> / <code>primeFrames</code></td>
+<td>bool / bool / int</td>
+<td>（設定値）</td>
+<td>初期状態・レイアウトプライミングの制御</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
+<ul>
+<li>メール: <a href="mailto:contact@mashirotheater.com">contact@mashirotheater.com</a></li>
+<li>X: <a href="https://x.com/hakushiza">https://x.com/hakushiza</a></li>
+<li>Discord: <a href="https://discord.com/invite/yU2Es38sVX">https://discord.com/invite/yU2Es38sVX</a></li>
+</ul>
+
+</main>
+<footer>main@2698a7a 時点の内容です。 · <a href="../../">Mashiro Small Theater VPM</a></footer>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mashiro Small Theater — VPM Listing</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.7; max-width: 46rem; margin: 0 auto; padding: 2rem 1.2rem 4rem;
+  }
+  h1 { font-size: 1.6rem; margin-bottom: .2rem; }
+  .sub { opacity: .7; margin-top: 0; }
+  .cta {
+    display: inline-block; margin: 1.2rem 0 .4rem; padding: .7rem 1.4rem;
+    background: #E85900; color: #fff; text-decoration: none; border-radius: .4rem; font-weight: 700;
+  }
+  code { background: rgba(127,127,127,.18); padding: .1rem .35rem; border-radius: .25rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid rgba(127,127,127,.3); }
+  th { font-size: .85rem; opacity: .75; }
+  .note { background: rgba(127,127,127,.12); padding: .8rem 1rem; border-radius: .4rem; }
+</style>
+</head>
+<body>
+
+<h1>Mashiro Small Theater</h1>
+<p class="sub">VRChat ワールド用ギミックの VPM リスティング</p>
+
+<a class="cta" href="vcc://vpm/addRepo?url=https://meadowsage.github.io/mashirotheater-vpm/index.json">VCC に追加</a>
+<p>うまく開かない場合は、VCC の <strong>Settings → Packages → Add Repository</strong> に次の URL を貼り付けてください。</p>
+<p><code>https://meadowsage.github.io/mashirotheater-vpm/index.json</code></p>
+
+<h2>収録パッケージ</h2>
+<table>
+  <tr><th>パッケージ</th><th>内容</th><th>依存</th></tr>
+  <tr><td>Mashiro Theater Common</td><td>共有シェーダ・マテリアル・フォント・アイコン</td><td>—</td></tr>
+  <tr><td>Mashiro Theater Utils</td><td>AutoDoor などの小規模ギミック詰め合わせ</td><td>Common</td></tr>
+</table>
+<p>依存は VCC が自動で解決します。Utils を入れれば Common も一緒に入ります。</p>
+
+<h2>マニュアル</h2>
+<p>各ギミックの使い方は <a href="docs/">マニュアル</a> を参照してください。VCC のパッケージ詳細からも開けます。</p>
+
+<h2>すでに unitypackage 版を使っている場合</h2>
+<div class="note">
+  <p>VCC でインストールすると、<code>Assets/MashiroSmallTheater/</code> 配下の同じフォルダは
+  自動的に削除されます（<code>legacyFolders</code> による移行）。ファイルの GUID は変わらないため、
+  シーンやプレハブからの参照は維持されます。</p>
+  <p>念のため、インストール前にプロジェクトのバックアップを取ってください。</p>
+</div>
+
+<h2>ライセンス</h2>
+<p>MIT License。同梱しているフォント（SIL OFL 1.1）とアイコン（Apache License 2.0）は、
+それぞれのライセンスに従います。詳細は各パッケージ同梱の <code>LICENSE.md</code> を参照してください。</p>
+
+<p><a href="https://github.com/meadowsage/mashirotheater-vpm">GitHub リポジトリ</a></p>
+
+</body>
+</html>

@@ -1,0 +1,175 @@
+{
+  "label": "main@2698a7a",
+  "packages": [
+    {
+      "id": "common",
+      "name": "MashiroTheater-Common",
+      "displayName": "Mashiro Theater Common",
+      "description": "他パッケージが共有するシェーダ・マテリアル・フォント・アイコン。単体では機能しません。",
+      "vpmName": "com.mashirotheater.common",
+      "url": "common/",
+      "pages": [
+        {
+          "title": "License",
+          "url": "common/LICENSE.html",
+          "markdown": "common/LICENSE.md"
+        },
+        {
+          "title": "_Common / Shaders",
+          "url": "common/Shaders/",
+          "markdown": "common/Shaders/README.md"
+        }
+      ]
+    },
+    {
+      "id": "utils",
+      "name": "MashiroTheater-Utils",
+      "displayName": "Mashiro Theater Utils",
+      "description": "AutoDoor などの小規模ギミック詰め合わせ。",
+      "vpmName": "com.mashirotheater.utils",
+      "url": "utils/",
+      "pages": [
+        {
+          "title": "Mashiro Theater Utils",
+          "url": "utils/",
+          "markdown": "utils/README.md"
+        },
+        {
+          "title": "AudioZoneController 使い方ガイド",
+          "url": "utils/AudioZoneController/",
+          "markdown": "utils/AudioZoneController/README.md"
+        },
+        {
+          "title": "Mashiro Auto Door",
+          "url": "utils/AutoDoor/",
+          "markdown": "utils/AutoDoor/README.md"
+        },
+        {
+          "title": "Mashiro Button Lock System",
+          "url": "utils/ButtonLockSystem/",
+          "markdown": "utils/ButtonLockSystem/README.md"
+        },
+        {
+          "title": "MashiroChairHeightAdjuster",
+          "url": "utils/ChairHeightAdjuster/",
+          "markdown": "utils/ChairHeightAdjuster/README.md"
+        },
+        {
+          "title": "Mashiro Custom Station",
+          "url": "utils/CustomStation/",
+          "markdown": "utils/CustomStation/README.md"
+        },
+        {
+          "title": "MashiroLocalAreaActivator",
+          "url": "utils/LocalAreaActivator/",
+          "markdown": "utils/LocalAreaActivator/README.md"
+        },
+        {
+          "title": "OnOffSwitches",
+          "url": "utils/OnOffSwitches/",
+          "markdown": "utils/OnOffSwitches/README.md"
+        },
+        {
+          "title": "Mashiro Page Viewer",
+          "url": "utils/PageViewer/",
+          "markdown": "utils/PageViewer/README.md"
+        },
+        {
+          "title": "Mashiro Pickup Hold SFX",
+          "url": "utils/PickupHoldSfx/",
+          "markdown": "utils/PickupHoldSfx/README.md"
+        },
+        {
+          "title": "MashiroPickupHorizontalReset",
+          "url": "utils/PickupHorizontalReset/",
+          "markdown": "utils/PickupHorizontalReset/README.md"
+        },
+        {
+          "title": "Mashiro Pickup Reset Button",
+          "url": "utils/PickupResetButton/",
+          "markdown": "utils/PickupResetButton/README.md"
+        },
+        {
+          "title": "Mashiro Pickup Space Fixer",
+          "url": "utils/PickupSpaceFixer/",
+          "markdown": "utils/PickupSpaceFixer/README.md"
+        },
+        {
+          "title": "Mashiro Player Follower",
+          "url": "utils/PlayerFollower/",
+          "markdown": "utils/PlayerFollower/README.md"
+        },
+        {
+          "title": "Mashiro Speed Change Zone",
+          "url": "utils/SpeedChangeZone/",
+          "markdown": "utils/SpeedChangeZone/README.md"
+        },
+        {
+          "title": "Mashiro Station Auto Seat (By Display Name)",
+          "url": "utils/StationAutoSeatByDisplayName/",
+          "markdown": "utils/StationAutoSeatByDisplayName/README.md"
+        },
+        {
+          "title": "Mashiro Station Auto Seat (On Active)",
+          "url": "utils/StationAutoSeatOnActive/",
+          "markdown": "utils/StationAutoSeatOnActive/README.md"
+        },
+        {
+          "title": "SyncedTimelineToggle",
+          "url": "utils/SyncedTimelineToggle/",
+          "markdown": "utils/SyncedTimelineToggle/README.md"
+        },
+        {
+          "title": "Mashiro Voice Mute Zone",
+          "url": "utils/VoiceMuteZone/",
+          "markdown": "utils/VoiceMuteZone/README.md"
+        }
+      ]
+    },
+    {
+      "id": "lighting",
+      "name": "MashiroTheater-LightingControlSystem",
+      "displayName": "Mashiro Theater Lighting Control System",
+      "description": "照明卓ギミック。ライトグループ・プリセット・フェード操作一式。",
+      "vpmName": null,
+      "url": "lighting/",
+      "pages": [
+        {
+          "title": "LightingControlSystem",
+          "url": "lighting/",
+          "markdown": "lighting/README.md"
+        },
+        {
+          "title": "ましろ小劇場 ツール・ギミック汎用利用規約",
+          "url": "lighting/LICENSE.html",
+          "markdown": "lighting/LICENSE.md"
+        }
+      ]
+    },
+    {
+      "id": "stage-timeline",
+      "name": "MashiroTheater-StageTimelineManager",
+      "displayName": "Mashiro Theater Stage Timeline Manager",
+      "description": "舞台進行タイムラインのビルダーとランタイム一式。",
+      "vpmName": null,
+      "url": "stage-timeline/",
+      "pages": [
+        {
+          "title": "StageTimelineBuilder / Manager ユーザーマニュアル",
+          "url": "stage-timeline/",
+          "markdown": "stage-timeline/README.md"
+        },
+        {
+          "title": "StageTimeline Builder — 高度な連携ガイド（Animator / Udon）",
+          "url": "stage-timeline/Builder/",
+          "markdown": "stage-timeline/Builder/README.md"
+        },
+        {
+          "title": "ましろ小劇場 ツール・ギミック汎用利用規約",
+          "url": "stage-timeline/LICENSE.html",
+          "markdown": "stage-timeline/LICENSE.md"
+        }
+      ]
+    }
+  ]
+}

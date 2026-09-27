@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mashiro Player Follower — Mashiro Small Theater</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fg: #1f1f1f; --bg: #ffffff; --muted: #666666; --line: rgba(127,127,127,.3);
+    --code-bg: rgba(127,127,127,.14); --accent: #E85900;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e6e6; --bg: #161616; --muted: #999999; }
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.75; max-width: 52rem; margin: 0 auto; padding: 1.2rem 16px 4rem;
+    color: var(--fg); background: var(--bg); overflow-wrap: anywhere;
+  }
+  a { color: var(--accent); }
+  nav { font-size: .9rem; color: var(--muted); margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; line-height: 1.4; }
+  h2 { margin-top: 2.4rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+  h3 { margin-top: 1.8rem; }
+  code { background: var(--code-bg); padding: .1rem .35rem; border-radius: .25rem; font-size: .9em; }
+  pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: .4rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; display: block; overflow-x: auto; margin: 1rem 0; }
+  th, td { text-align: left; padding: .45rem .7rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--code-bg); }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid var(--line); color: var(--muted); }
+  img { max-width: 100%; }
+  footer { margin-top: 3rem; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<nav><a href="../../">マニュアル</a> / <a href="../">Mashiro Theater Utils</a></nav>
+<main>
+<h1 id="mashiro-player-follower">Mashiro Player Follower</h1>
+<p>オブジェクトをプレイヤーに追従させるコンポーネント集です。独立した 3 つの機能が入っています。</p>
+<table>
+<thead>
+<tr>
+<th>コンポーネント</th>
+<th>用途</th>
+<th>同期</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MashiroPlayerFollower</code>（+ ButtonHandler）</td>
+<td>UI でプレイヤーを選んでオブジェクトを追従させる</td>
+<td>全員同期（Manual）</td>
+</tr>
+<tr>
+<td><code>MashiroPlayerNameFollower</code></td>
+<td>DisplayName 指定のプレイヤーへオブジェクトを<strong>向ける</strong>（スポットライト等）</td>
+<td>ローカル一致方式</td>
+</tr>
+<tr>
+<td><code>MashiroPlayerNameLookTarget</code></td>
+<td>DisplayName 指定のプレイヤー位置へ自身を<strong>移動</strong>（Cinemachine LookAt 用ダミー）</td>
+<td>ローカル一致方式</td>
+</tr>
+</tbody>
+</table>
+<h2 id="1-mashiroplayerfollower--ui-選択式の追従">1. MashiroPlayerFollower — UI 選択式の追従</h2>
+<p>プレイヤーが「登録」ボタンで自分を候補一覧に載せ、一覧のボタンで選ばれたプレイヤーに <code>Target Object</code> が追従します。選択状態は全員で同期されます。</p>
+<h3 id="同梱プレハブ">同梱プレハブ</h3>
+<table>
+<thead>
+<tr>
+<th>プレハブ</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PlayerFollowerBoard.prefab</code></td>
+<td><code>MashiroPlayerFollower</code> と UI（登録ボタン・候補一覧のスクロールビュー・対象名表示）が組み込み済みのボード</td>
+</tr>
+<tr>
+<td><code>PlayerButton.prefab</code></td>
+<td>一覧に並ぶボタン。<code>MashiroPlayerFollowerButtonHandler</code> 付きで、<code>OnClick</code> から <code>OnButtonClick</code> を呼ぶ配線済み</td>
+</tr>
+</tbody>
+</table>
+<h3 id="セットアップ">セットアップ</h3>
+<ol>
+<li><code>PlayerFollowerBoard.prefab</code> をシーンに配置します。<code>Player Button Prefab</code> / <code>Button Parent</code> / <code>Target Object Name Text</code> と、登録ボタンの <code>OnClick</code>（<code>RegisterSelf</code>）は配線済みです。</li>
+<li>ボード上の <code>MashiroPlayerFollower</code> の <code>Target Object</code> に、追従させたいオブジェクト（スポットライト等）を割り当てます。プレハブでは未設定です。</li>
+<li>UI を自作する場合は、<code>Player Button Prefab</code> に同梱の <code>PlayerButton.prefab</code> を指定し、<code>Button Parent</code> に一覧の親 Transform を割り当て、登録ボタンの <code>OnClick</code> に <code>RegisterSelf</code> を配線します。</li>
+</ol>
+<h3 id="mashiroplayerfollower-のフィールド">MashiroPlayerFollower のフィールド</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Target Object</code></td>
+<td>追従させるオブジェクト</td>
+</tr>
+<tr>
+<td><code>Player Button Prefab</code></td>
+<td>一覧に並べるボタンの prefab（同梱の <code>PlayerButton.prefab</code>）</td>
+</tr>
+<tr>
+<td><code>Button Parent</code></td>
+<td>ボタンを生成する親 Transform</td>
+</tr>
+<tr>
+<td><code>Target Object Name Text</code></td>
+<td><code>Target Object</code> の名前を <code>Object : &lt;名前&gt;</code> 形式で表示する TextMeshProUGUI（任意）。起動時に一度だけ設定され、以後は更新されません</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mashiroplayerfollowerbuttonhandler-のフィールド">MashiroPlayerFollowerButtonHandler のフィールド</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Button Text</code></td>
+<td>–</td>
+<td>プレイヤー名を表示する TextMeshProUGUI（prefab で配線済み）</td>
+</tr>
+<tr>
+<td><code>Button Image</code></td>
+<td>–</td>
+<td>配色を適用する Image（prefab で配線済み）</td>
+</tr>
+<tr>
+<td><code>Normal Color</code></td>
+<td><code>#000000</code></td>
+<td>非選択時のボタン背景色</td>
+</tr>
+<tr>
+<td><code>Selected Color</code></td>
+<td><code>#E85900</code></td>
+<td>選択時のボタン背景色</td>
+</tr>
+</tbody>
+</table>
+<h3 id="api-リファレンス">API リファレンス</h3>
+<table>
+<thead>
+<tr>
+<th>メソッド／プロパティ</th>
+<th>用途</th>
+<th>呼び出し種別</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MashiroPlayerFollower.RegisterSelf()</code></td>
+<td>自分を候補一覧に登録</td>
+<td><code>Button.OnClick</code> から配線</td>
+</tr>
+<tr>
+<td><code>MashiroPlayerFollower.TogglePlayerSelection(VRCPlayerApi)</code></td>
+<td>追従対象の切替</td>
+<td>ButtonHandler が呼ぶ内部連携用</td>
+</tr>
+<tr>
+<td><code>MashiroPlayerFollowerButtonHandler.OnButtonClick()</code></td>
+<td>一覧ボタンの押下処理</td>
+<td>prefab 内で配線済み</td>
+</tr>
+<tr>
+<td><code>MashiroPlayerFollowerButtonHandler.PlayerId</code></td>
+<td>ボタンが担当するプレイヤーの playerId（未初期化時は <code>-1</code>）</td>
+<td>内部連携用（読み取り専用・配線不要）</td>
+</tr>
+<tr>
+<td><code>Initialize</code> / <code>SetSelected</code></td>
+<td>ボタンの初期化・表示更新</td>
+<td>内部連携用（手配線不要）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2-mashiroplayernamefollower--名前指定で向ける">2. MashiroPlayerNameFollower — 名前指定で向ける</h2>
+<p>DisplayName が完全一致するプレイヤーの方向へ、オブジェクト（スポットライト等）を回転させます。各クライアントが同じ計算をローカル実行するため見え方は概ね一致します（厳密同期なし）。</p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Target Object</code></td>
+<td>–</td>
+<td>向かせたいオブジェクト</td>
+</tr>
+<tr>
+<td><code>Target Player Name</code></td>
+<td>–</td>
+<td>対象プレイヤーの DisplayName（完全一致）</td>
+</tr>
+<tr>
+<td><code>Target Position Ratio</code></td>
+<td><code>0.02</code></td>
+<td>狙う高さの比率。<strong>0 = 頭 / 1 = 足元</strong>（既定値はほぼ頭の位置）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="api-リファレンス-1">API リファレンス</h3>
+<table>
+<thead>
+<tr>
+<th>メソッド</th>
+<th>用途</th>
+<th>呼び出し種別</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>_SetTargetPlayerName(string)</code></td>
+<td>対象プレイヤー名を変更</td>
+<td>他コンポーネントから呼ぶ内部連携用</td>
+</tr>
+<tr>
+<td><code>_ResetRotation()</code></td>
+<td>回転を初期状態へ戻す</td>
+<td>同上</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-mashiroplayernamelooktarget--名前指定で位置追従">3. MashiroPlayerNameLookTarget — 名前指定で位置追従</h2>
+<p>DisplayName 指定のプレイヤー位置（頭〜足元の比率指定＋オフセット）へ、自身を滑らかに移動させます。Cinemachine の LookAt にこのオブジェクトを割り当てて使います。</p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Target Player Name</code></td>
+<td><code>PlayerName</code></td>
+<td>対象プレイヤーの DisplayName（完全一致）。既定値はダミー文字列なので、必ず実際の DisplayName に書き換えます</td>
+</tr>
+<tr>
+<td><code>Target Position Ratio</code></td>
+<td><code>0.35</code></td>
+<td>追従する高さの比率。<strong>0 = 頭 / 1 = 足元</strong>（0.3〜0.6 程度が頭の揺れを抑えやすい）</td>
+</tr>
+<tr>
+<td><code>World Offset</code></td>
+<td><code>(0, 0.1, 0)</code></td>
+<td>追加のワールドオフセット</td>
+</tr>
+<tr>
+<td><code>Smooth Alpha</code></td>
+<td><code>0.25</code></td>
+<td>追従の滑らかさ</td>
+</tr>
+<tr>
+<td><code>Max Step Per Frame</code></td>
+<td><code>0</code>（無制限）</td>
+<td>1 フレームの最大移動距離</td>
+</tr>
+<tr>
+<td><code>Fallback Point</code></td>
+<td>–</td>
+<td>対象不在時に寄せる位置（未指定なら現位置維持）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="api-リファレンス-2">API リファレンス</h3>
+<table>
+<thead>
+<tr>
+<th>メソッド</th>
+<th>用途</th>
+<th>呼び出し種別</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>_SetTargetPlayerName(string)</code></td>
+<td>対象プレイヤー名を変更</td>
+<td>他コンポーネントから呼ぶ内部連携用</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ライセンス">ライセンス</h2>
+<p>このフォルダの内容は MIT License で提供します（リポジトリルートの <code>LICENSE.md</code> を参照）。</p>
+<hr />
+<p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
+<ul>
+<li>メール: <a href="mailto:contact@mashirotheater.com">contact@mashirotheater.com</a></li>
+<li>X: <a href="https://x.com/hakushiza">https://x.com/hakushiza</a></li>
+<li>Discord: <a href="https://discord.com/invite/yU2Es38sVX">https://discord.com/invite/yU2Es38sVX</a></li>
+</ul>
+
+</main>
+<footer>main@2698a7a 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
+</body>
+</html>

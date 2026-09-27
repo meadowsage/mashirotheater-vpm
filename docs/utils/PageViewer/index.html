@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mashiro Page Viewer — Mashiro Small Theater</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fg: #1f1f1f; --bg: #ffffff; --muted: #666666; --line: rgba(127,127,127,.3);
+    --code-bg: rgba(127,127,127,.14); --accent: #E85900;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e6e6; --bg: #161616; --muted: #999999; }
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.75; max-width: 52rem; margin: 0 auto; padding: 1.2rem 16px 4rem;
+    color: var(--fg); background: var(--bg); overflow-wrap: anywhere;
+  }
+  a { color: var(--accent); }
+  nav { font-size: .9rem; color: var(--muted); margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; line-height: 1.4; }
+  h2 { margin-top: 2.4rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+  h3 { margin-top: 1.8rem; }
+  code { background: var(--code-bg); padding: .1rem .35rem; border-radius: .25rem; font-size: .9em; }
+  pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: .4rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; display: block; overflow-x: auto; margin: 1rem 0; }
+  th, td { text-align: left; padding: .45rem .7rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--code-bg); }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid var(--line); color: var(--muted); }
+  img { max-width: 100%; }
+  footer { margin-top: 3rem; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<nav><a href="../../">マニュアル</a> / <a href="../">Mashiro Theater Utils</a></nav>
+<main>
+<h1 id="mashiro-page-viewer">Mashiro Page Viewer</h1>
+<p>Sprite 配列をページ送りで表示する画像ビューアです。台本・パンフレット・スライド資料などの複数ページ画像を、フェード付きでめくって閲覧できます。ページ位置を全員で同期するモードと、各自がローカルでめくるモードを選べます。</p>
+<h2 id="主な機能">主な機能</h2>
+<ul>
+<li>Sprite 配列のページ送り（前へ / 次へ、末尾と先頭はループ）</li>
+<li>ページ切り替え時のフェード（時間は調整可）</li>
+<li>ページ番号表示（&quot;3 / 12&quot; 形式）</li>
+<li><strong>グローバル同期モード</strong>（任意）: ページ位置を全プレイヤーで共有。めくった人がオーナーになり、Late Joiner にも現在ページが反映される</li>
+<li>拡大・縮小（対象 Transform のスケール操作、上限・下限あり）</li>
+<li>水平化（傾きのリセット）</li>
+<li>同じページを複数の <code>Image</code> に同時表示（メイン + 追加ディスプレイ）</li>
+</ul>
+<h2 id="同梱ファイル">同梱ファイル</h2>
+<p>配布パッケージに含まれるもの。</p>
+<table>
+<thead>
+<tr>
+<th>ファイル</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MashiroPageViewer.prefab</code></td>
+<td>基本構成（表示 Image + ページ送り UI）</td>
+</tr>
+<tr>
+<td><code>MashiroImageGalleryWithUIHandle.prefab</code></td>
+<td>UI ハンドル付きのギャラリー構成例（<code>MashiroPageViewer.prefab</code> を内包）</td>
+</tr>
+<tr>
+<td><code>Images/arrow_left.png</code> <code>Images/arrow_right.png</code></td>
+<td>ページ送りボタン用の矢印画像</td>
+</tr>
+</tbody>
+</table>
+<p>以下はリポジトリ上にのみ存在するサンプルで、<strong>配布パッケージには含まれません</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>ファイル</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>台本Local_横.prefab</code> / <code>台本Local_縦.prefab</code></td>
+<td>台本用のローカル閲覧構成サンプル（横書き / 縦書き）</td>
+</tr>
+<tr>
+<td><code>BREAK_FAST/</code></td>
+<td>動作確認用のサンプルページ画像 9 枚</td>
+</tr>
+</tbody>
+</table>
+<h2 id="セットアップ">セットアップ</h2>
+<ol>
+<li>プレハブをシーンに配置するか、Canvas 配下に <code>Image</code> とページ送りボタンを用意して <code>MashiroPageViewer</code> を追加します</li>
+<li><code>Images</code> にページ画像の Sprite 配列を設定します（<strong>1 枚以上必須</strong>。空だと動作しません）</li>
+<li>ボタンの <code>OnClick</code> を API リファレンスの通り配線します</li>
+</ol>
+<h2 id="inspector-フィールド">Inspector フィールド</h2>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Display Image</code></td>
+<td>–</td>
+<td>ページを表示するメインの <code>Image</code></td>
+</tr>
+<tr>
+<td><code>Additional Display Images</code></td>
+<td>–</td>
+<td>同じページを同時表示する追加の <code>Image</code> 配列（不要なら空）</td>
+</tr>
+<tr>
+<td><code>Page Text</code></td>
+<td>–</td>
+<td>ページ番号表示用 <code>TextMeshProUGUI</code>（不要なら None）</td>
+</tr>
+<tr>
+<td><code>Images</code></td>
+<td>–</td>
+<td>ページ画像の Sprite 配列（必須）</td>
+</tr>
+<tr>
+<td><code>Fade Duration</code></td>
+<td><code>1</code> 秒</td>
+<td>ページ切り替え時のフェード時間</td>
+</tr>
+<tr>
+<td><code>Use Global Sync</code></td>
+<td><code>false</code></td>
+<td>ON でページ位置を全プレイヤー同期。OFF なら各自ローカル</td>
+</tr>
+<tr>
+<td><code>Reverse Direction</code></td>
+<td><code>false</code></td>
+<td>ページ送りの方向を反転（右綴じの縦書き台本など）</td>
+</tr>
+<tr>
+<td><code>Scale Target</code></td>
+<td>–</td>
+<td>拡大・縮小の対象 Transform（未設定なら拡縮機能オフ）</td>
+</tr>
+<tr>
+<td><code>Scale Step</code></td>
+<td><code>0.1</code></td>
+<td>1 回あたりの拡縮量</td>
+</tr>
+<tr>
+<td><code>Min / Max Scale Multiplier</code></td>
+<td><code>0.5</code> / <code>2</code></td>
+<td>拡縮の下限・上限（初期スケール比）</td>
+</tr>
+<tr>
+<td><code>Horizontal Reset Target</code></td>
+<td>–</td>
+<td>水平化（傾きのリセット）の対象 Transform。<strong>未設定ならこのコンポーネントが付いた GameObject 自身が対象</strong></td>
+</tr>
+</tbody>
+</table>
+<h2 id="api-リファレンス">API リファレンス</h2>
+<h3 id="mashiropageviewer">MashiroPageViewer</h3>
+<p>すべて <strong>UI の <code>Button.OnClick</code> から配線</strong>して使います。</p>
+<table>
+<thead>
+<tr>
+<th>メソッド</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OnNextButtonPressed</code></td>
+<td>「→」ボタン用。<code>Reverse Direction</code> が OFF なら次のページへ、ON なら前のページへ（末尾と先頭はループ）</td>
+</tr>
+<tr>
+<td><code>OnPrevButtonPressed</code></td>
+<td>「←」ボタン用。<code>Reverse Direction</code> が OFF なら前のページへ、ON なら次のページへ</td>
+</tr>
+<tr>
+<td><code>OnPageAdvanceButtonPressed</code></td>
+<td><code>Reverse Direction</code> の設定に関係なく、常に次のページへ</td>
+</tr>
+<tr>
+<td><code>OnZoomInButtonPressed</code> / <code>OnZoomOutButtonPressed</code></td>
+<td>拡大 / 縮小</td>
+</tr>
+<tr>
+<td><code>OnHorizontalResetButtonPressed</code></td>
+<td>対象 Transform を水平化する（X/Z 回転を 0 にし、Y 軸の向きと位置は維持）</td>
+</tr>
+</tbody>
+</table>
+<p><code>OnNextButtonPressed</code> / <code>OnPrevButtonPressed</code> は <strong>画面上の矢印の向き</strong>に対応するメソッドです。右綴じの台本などで <code>Reverse Direction</code> を ON にすると、矢印ボタンの配線を変えずにページ送りの向きだけを反転できます。</p>
+<p>画像パネル全体をボタン化して「クリックで読み進める」ようにする場合など、押した位置と向きが対応しない配線先には <code>OnPageAdvanceButtonPressed</code> を使ってください。<code>Reverse Direction</code> の設定に左右されず、常にページ番号が増える方向へ進みます。</p>
+<p><code>OnDeserialization</code> は同期用の内部処理です（配線不要）。</p>
+<h2 id="同期の仕様">同期の仕様</h2>
+<ul>
+<li>同期方式は <strong>Manual</strong> に固定されています（スクリプト側で指定済みのため、Inspector での変更は不要です）</li>
+<li><code>Use Global Sync</code> が ON のとき、ページをめくったプレイヤーがオブジェクトのオーナーになり、ページ番号が全員に配信されます</li>
+<li>OFF のときは完全ローカルで、各自が好きなページを閲覧できます（台本の個人閲覧向け）</li>
+<li>フェード演出は各クライアントのローカル処理です</li>
+</ul>
+<h2 id="ライセンス">ライセンス</h2>
+<p>このフォルダの内容は MIT License で提供します（リポジトリルートの <code>LICENSE.md</code> を参照）。</p>
+<hr />
+<p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
+<ul>
+<li>メール: <a href="mailto:contact@mashirotheater.com">contact@mashirotheater.com</a></li>
+<li>X: <a href="https://x.com/hakushiza">https://x.com/hakushiza</a></li>
+<li>Discord: <a href="https://discord.com/invite/yU2Es38sVX">https://discord.com/invite/yU2Es38sVX</a></li>
+</ul>
+
+</main>
+<footer>main@2698a7a 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
+</body>
+</html>
