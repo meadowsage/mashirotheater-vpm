@@ -70,17 +70,11 @@ OFL は、フォントを再配布する際にライセンス全文を同梱す�
 | `StageTimeline/icon_next.png` | `skip_next` |
 | `StageTimeline/icon_back.png` | `skip_previous` |
 | `StageTimeline/icon_user.png` | `person` |
-| `情報アイコン.png` | `info` |
-| `注意マークの線画アイコン.png` | `warning` |
-| `無料の音符アイコン素材 その3.png` | `music_note` |
-| `CustomStation/ソファーアイコン.png` ※ | `chair` |
 
 - Copyright Google LLC
 - Apache License, Version 2.0
 - ライセンス全文: [`licenses/Apache-2.0.txt`](licenses/Apache-2.0.txt)（パッケージ内では `_Common/Icons/Apache-2.0.txt`）
 - 出典: https://github.com/google/material-design-icons
-
-※ ソファーアイコンのみ `CustomStation/` フォルダにあります。
 
 いずれも Material Symbols の SVG を、元アイコンと同じ寸法の白い PNG として書き出したものです
 （`_Common/Icons/` 直下は wght700、`StageTimeline/` は wght400）。
