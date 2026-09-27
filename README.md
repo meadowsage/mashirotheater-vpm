@@ -12,6 +12,7 @@ https://meadowsage.github.io/mashirotheater-vpm/index.json
 ```
 
 案内ページ: https://meadowsage.github.io/mashirotheater-vpm/
+マニュアル: https://meadowsage.github.io/mashirotheater-vpm/docs/
 
 ## 収録パッケージ
 
@@ -38,41 +39,21 @@ MIT License。同梱しているフォント（SIL OFL 1.1）とアイコン（A
 ## このリポジトリの仕組み（メンテナ向け）
 
 ギミックのソースは別の非公開リポジトリで管理しています。このリポジトリは**配布物の
-公開先**です。
+置き場**で、中身はすべてソースリポジトリの CI が書き込みます。**直接編集しないでください**
+（次の反映で上書きされます）。
 
-1. ソースリポジトリでタグを push すると、CI が unitypackage と VPM パッケージをビルドする
-2. CI が PAT を使って**このリポジトリに Release を作成**し、成果物を添付する
-3. その Release イベントで `listing.yml` が動き、全 Release から `index.json` を
-   組み立てて GitHub Pages へ公開する
-
-Release を PAT で作るのが要点です。`GITHUB_TOKEN` による操作は他のワークフローを
-起動しないため、リスティング更新が連鎖しません。
-
-`index.json` はコミットしません。毎回すべての Release から組み立て直すため、
-過去バージョンも常に載ります。
-
-### このリポジトリのファイル
-
-| ファイル | 用途 |
+| 場所 | 中身 |
 | --- | --- |
-| `listing.json` | リスティングの名前・ID・URL |
-| `scripts/make_listing.py` | Release から `index.json` を生成する |
-| `.github/workflows/listing.yml` | Release を受けて Pages へ公開する |
-| `index.html` | 案内ページ |
+| Release | 各バージョンの zip / unitypackage / VPM 用 json |
+| `gh-pages` ブランチ | GitHub Pages として公開するサイト（`index.json`・`docs/`・案内ページ） |
+| `main` ブランチ | この README とライセンス |
 
-これらの元ファイルはソースリポジトリの `.packaging/dist-repo/` にあります。変更する
-場合はそちらを直してから反映してください。
+このリポジトリにワークフローはありません。`gh-pages` への push で GitHub Pages が更新されます。
 
 ### 必要な設定
 
-- **Settings → Pages → Source: GitHub Actions**
-- **Settings → Environments → `github-pages` → Deployment branches and tags**
-  にタグルール `v*` を追加する。この environment は既定で「デフォルトブランチからの
-  デプロイのみ」に制限されており、Release イベントのワークフローはタグ (`v0.1.0` 等) を
-  ref として動くため、追加しないとジョブがステップ実行前に拒否される（ログの残らない
-  数秒での失敗になる）。
+- **Settings → Pages → Source: Deploy from a branch**（`gh-pages` / `/ (root)`）
 - ソースリポジトリ側の Secrets に `DIST_REPO_TOKEN`（このリポジトリへの
   Contents: Read and write 権限を持つ fine-grained PAT）
 
-リスティングは Actions から «Publish listing» を `workflow_dispatch` で手動実行しても
-組み立て直せる。Release を作り直す必要はない。
+リリース・マニュアル更新などの手順は、ソースリポジトリの `.packaging/README.md` を参照してください。
