@@ -12,6 +12,7 @@ https://meadowsage.github.io/mashirotheater-vpm/index.json
 ```
 
 案内ページ: https://meadowsage.github.io/mashirotheater-vpm/
+マニュアル: https://meadowsage.github.io/mashirotheater-vpm/docs/
 
 ## 収録パッケージ
 
@@ -51,6 +52,11 @@ Release を PAT で作るのが要点です。`GITHUB_TOKEN` による操作は�
 `index.json` はコミットしません。毎回すべての Release から組み立て直すため、
 過去バージョンも常に載ります。
 
+マニュアル（`/docs/`）は **`docs` ブランチ**の内容をそのまま配置します。`docs` ブランチは
+ソースリポジトリの CI が生成・push するもので、手で編集しません。リリース時のほか、
+マニュアルだけを更新したときにも push され、`docs-updated`（repository_dispatch）で
+Pages が再生成されます。
+
 ### このリポジトリのファイル
 
 | ファイル | 用途 |
@@ -59,6 +65,7 @@ Release を PAT で作るのが要点です。`GITHUB_TOKEN` による操作は�
 | `scripts/make_listing.py` | Release から `index.json` を生成する |
 | `.github/workflows/listing.yml` | Release を受けて Pages へ公開する |
 | `index.html` | 案内ページ |
+| `docs` ブランチ | マニュアル（CI が生成。`/docs/` に配置される） |
 
 これらの元ファイルはソースリポジトリの `.packaging/dist-repo/` にあります。変更する
 場合はそちらを直してから反映してください。

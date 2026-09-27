@@ -3,10 +3,13 @@ name: Publish listing
 # Release が作られると index.json を組み立て直して Pages へ公開する。
 # Release はソースリポジトリ (非公開) の CI が PAT で作成するため、
 # このイベントが発火する（GITHUB_TOKEN 由来の操作では発火しない）。
+# マニュアルだけを更新したときは、ソースリポジトリの CI が docs-updated を送ってくる。
 on:
   release:
     # released は published と同時に発火するため入れない (Pages デプロイが二重起動する)
     types: [published, edited, deleted]
+  repository_dispatch:
+    types: [docs-updated]
   workflow_dispatch:
 
 permissions:
@@ -33,6 +36,17 @@ jobs:
         run: |
           mkdir -p _site
           cp index.html _site/
+
+      # docs ブランチはソースリポジトリの CI が push する（マニュアルの生成結果）
+      - name: マニュアルを配置
+        run: |
+          if git ls-remote --exit-code --heads origin docs >/dev/null; then
+            git fetch --depth 1 origin docs
+            mkdir -p _site/docs
+            git archive FETCH_HEAD | tar -x -C _site/docs
+          else
+            echo "::warning::docs ブランチがまだありません。マニュアルは公開されません"
+          fi
 
       - name: index.json を生成
         env:
