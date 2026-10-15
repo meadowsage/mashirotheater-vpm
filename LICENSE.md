@@ -24,8 +24,8 @@ SOFTWARE.
 
 ## 適用範囲
 
-上記 MIT License は、配布パッケージ `MashiroTheater-Common` / `MashiroTheater-Utils`
-（VPM: `com.mashirotheater.common` / `com.mashirotheater.utils`）に含まれるソースコード
+上記 MIT License は、配布パッケージ `MashiroTheater-Utils`
+（VPM: `com.mashirotheater.utils`）に含まれるソースコード
 (`.cs`)、シェーダ、および Mashiro Small Theater が作成したアセットに適用されます。
 
 次のパッケージは **MIT License の対象外**です。各パッケージに同梱の
@@ -33,8 +33,8 @@ SOFTWARE.
 （正本: [`licenses/VN3License_ja.pdf`](licenses/VN3License_ja.pdf)、VN3 ライセンス様式）。成果物（ワールド等）への組み込み・改変・商用利用は可能ですが、
 素材としての再配布・再販売はできません。
 
-- `MashiroTheater-LightingControlSystem`
-- `MashiroTheater-StageTimelineManager`
+- `MashiroTheater-LightingConsole`
+- `MashiroTheater-StageTimelineTools`（VPM: `com.mashirotheater.stagetimelinetools`）
 
 下記「第三者アセット」に挙げたものは、それぞれの提供元のライセンスに従います。
 MIT License の対象外です。

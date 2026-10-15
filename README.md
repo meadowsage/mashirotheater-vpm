@@ -12,16 +12,18 @@ https://meadowsage.github.io/mashirotheater-vpm/index.json
 ```
 
 案内ページ: https://meadowsage.github.io/mashirotheater-vpm/
-マニュアル: https://meadowsage.github.io/mashirotheater-vpm/docs/
+リファレンス: https://meadowsage.github.io/mashirotheater-vpm/docs/
 
 ## 収録パッケージ
 
 | パッケージ | 内容 | 依存 |
 | --- | --- | --- |
-| `com.mashirotheater.common` | 共有シェーダ・マテリアル・フォント・アイコン | VRChat SDK |
-| `com.mashirotheater.utils` | AutoDoor などの小規模ギミック詰め合わせ | 上記 + Common |
+| `com.mashirotheater.utils` | AutoDoor などの小規模ギミック、灯体（LightGroup）、共有素材 | VRChat SDK |
+| `com.mashirotheater.stagetimelinetools` | 舞台進行タイムラインの生成（Builder）と進行管理（Manager）。利用規約は VN3 様式 | Utils |
 
-依存は VCC が自動で解決します。unitypackage 版も Release に添付しています。
+依存は VCC が自動で解決します。
+
+unitypackage 版も Release に添付しています。
 
 ## すでに unitypackage 版を使っている場合
 
@@ -56,4 +58,4 @@ MIT License。同梱しているフォント（SIL OFL 1.1）とアイコン（A
 - ソースリポジトリ側の Secrets に `DIST_REPO_TOKEN`（このリポジトリへの
   Contents: Read and write 権限を持つ fine-grained PAT）
 
-リリース・マニュアル更新などの手順は、ソースリポジトリの `.packaging/README.md` を参照してください。
+リリース・リファレンス更新などの手順は、ソースリポジトリの `.packaging/README.md` を参照してください。
