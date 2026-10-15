@@ -1,16 +1,16 @@
 {
-  "label": "v0.2.0",
+  "label": "v0.2.1",
   "packages": [
     {
       "id": "utils",
       "name": "MashiroTheater-Utils",
-      "displayName": "Mashiro Theater Utils",
+      "displayName": "Mashiro Utils",
       "description": "AutoDoor などの小規模ギミック、灯体（LightGroup）、各パッケージが共有するシェーダ・フォント・アイコン。",
       "vpmName": "com.mashirotheater.utils",
       "url": "utils/",
       "pages": [
         {
-          "title": "Mashiro Theater Utils",
+          "title": "Mashiro Utils",
           "url": "utils/",
           "markdown": "utils/README.md"
         },
@@ -94,7 +94,7 @@
     {
       "id": "stage-timeline",
       "name": "MashiroTheater-StageTimelineTools",
-      "displayName": "Mashiro Theater Stage Timeline Tools",
+      "displayName": "Mashiro Stage Timeline Tools",
       "description": "舞台進行タイムラインの生成（Builder）と実行時の進行管理（Manager）。",
       "vpmName": "com.mashirotheater.stagetimelinetools",
       "url": "stage-timeline/",

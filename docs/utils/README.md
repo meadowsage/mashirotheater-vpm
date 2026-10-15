@@ -1,4 +1,4 @@
-# Mashiro Theater Utils
+# Mashiro Utils
 
 `MashiroTheater-Utils` パッケージ（VPM: `com.mashirotheater.utils`）に収録するツールの一覧。`_Utils/` 配下のフォルダはすべてこのパッケージに入る。各ツールの仕様は各フォルダの `README.md` に記載する。
 
