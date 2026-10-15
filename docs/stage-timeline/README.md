@@ -36,7 +36,7 @@
 | [NoribenBeamlightShader](https://booth.pm/ja/items/1637978)（シェーダー `Noriben/noribenBeamLight`） | 任意 | 照明フェードの対象に含めるビームライト。未導入時は `Light` コンポーネントのみが対象 |
 
 - サンプルシーン（`Example/`）は Cinemachine（`CinemachineVirtualCamera` ×4・`CinemachineBrain`）と、Utils の `MashiroLightGroup` / `MashiroLightFixture` を使用する。
-- サンプルシーンのビームライト（名前に `BeamLight` を含む GameObject）は [NoribenBeamlightShader](https://booth.pm/ja/items/1637978) のメッシュ・マテリアルを参照する。本パッケージには同梱しない。
+- サンプルシーンのビームライト（名前に `BeamLight` を含む GameObject）は、サンプル用に新規作成したマテリアル `Example/Materials/Example_BeamLight.mat` を使う。このマテリアルのシェーダー・テクスチャと、ビームのメッシュは [NoribenBeamlightShader](https://booth.pm/ja/items/1637978) のものを参照しており、本パッケージには同梱しない（未導入の環境では Missing になる）。
 
 ## 仕様
 
