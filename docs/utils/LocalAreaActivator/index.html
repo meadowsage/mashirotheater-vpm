@@ -35,86 +35,121 @@
 </style>
 </head>
 <body>
-<nav><a href="../../">マニュアル</a> / <a href="../">Mashiro Theater Utils</a></nav>
+<nav><a href="../../">リファレンス</a> / <a href="../">Mashiro Theater Utils</a></nav>
 <main>
 <h1 id="mashirolocalareaactivator">MashiroLocalAreaActivator</h1>
-<p>指定したエリア内にローカルプレイヤーが居る間だけ、対象 GameObject を有効化するスイッチです。
-<strong>ローカル動作専用</strong>（同期なし）で、プレイヤーごとに独立して内外判定が行われます。</p>
-<h2 id="特徴">特徴</h2>
-<ul>
-<li><strong>OnPlayerTriggerEnter / Exit に依存しない</strong>: ポーリング方式で内外を直接判定するため、テレポート・リスポーン・物理ジャンプ・コライダーレイヤー設定ミスなどによる「入退場イベントの取りこぼし」が原理的に起きません。</li>
-<li><strong>Collider を再利用</strong>: エリア定義に既存の <code>Collider</code> をそのまま流用できます。回転・スケールに追従します。</li>
-<li><strong>複数ターゲット</strong>: 1 つのエリアで複数 GameObject を同時に ON/OFF できます。</li>
-<li><strong>軽量</strong>: 状態が変化した瞬間のみ <code>SetActive</code> を呼びます（毎フレーム呼び続けない）。判定間隔も調整可。</li>
-</ul>
-<h2 id="使い方">使い方</h2>
-<ol>
-<li>任意の GameObject に <code>MashiroLocalAreaActivator</code> を追加。</li>
-<li>インスペクタで以下を設定：
-<ul>
-<li><strong>Area</strong>: エリア判定に使う <code>Collider</code>（Is Trigger 推奨）</li>
-<li><strong>Targets</strong>: エリア内で有効化したい GameObject の配列</li>
-<li><strong>Invert</strong>: チェックするとエリア「外」で有効になります</li>
-<li><strong>Poll Interval</strong>: 判定間隔（秒）。デフォルト <code>0.1</code>（10Hz）</li>
-</ul>
-</li>
-</ol>
-<h2 id="パラメータ詳細">パラメータ詳細</h2>
+<p>ローカルプレイヤーが指定 Collider の内部にいる間だけ、対象 GameObject を有効化するコンポーネント。内外判定はポーリングで行い、状態は同期しない。</p>
+<h2 id="構成">構成</h2>
 <table>
 <thead>
 <tr>
-<th>項目</th>
-<th>説明</th>
-<th>推奨値</th>
+<th>ファイル</th>
+<th>役割</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Area</td>
-<td>エリア定義に使う Collider。Box / Sphere / Capsule / Convex MeshCollider に対応</td>
-<td>BoxCollider (Is Trigger)</td>
+<td><code>MashiroLocalAreaActivator.cs</code></td>
+<td>内外判定と対象 GameObject の <code>SetActive</code></td>
 </tr>
 <tr>
-<td>Targets</td>
-<td>有効化対象の GameObject 配列。null 要素は無視</td>
-<td>任意</td>
-</tr>
-<tr>
-<td>Invert</td>
-<td>true でエリア外時に有効化</td>
-<td>false</td>
-</tr>
-<tr>
-<td>Poll Interval</td>
-<td>判定間隔(秒)。0 以下で毎フレーム判定</td>
-<td>0.1（体感差ほぼ無し）</td>
+<td><code>MashiroLocalAreaActivator.asset</code></td>
+<td><code>MashiroLocalAreaActivator</code> の UdonSharp ProgramAsset</td>
 </tr>
 </tbody>
 </table>
-<h2 id="動作仕様">動作仕様</h2>
+<h2 id="依存">依存</h2>
 <ul>
-<li><strong>判定基準点</strong>: <code>Networking.LocalPlayer.GetPosition()</code>（プレイヤーの足元）</li>
-<li><strong>内外判定</strong>: <code>Collider.ClosestPoint(playerPos)</code> と入力点との距離で判定（距離 0 ≒ 内部）</li>
-<li><strong>初期状態</strong>: <code>Start</code> 時点で即時判定し、エリア内ならスタート時から有効化済みになります</li>
-<li><strong>位相分散</strong>: 同フレームで複数インスタンスが揃って評価されないよう、初回判定のみランダムにずらします</li>
+<li>パッケージ: <code>MashiroTheater-Utils</code>（VPM <code>com.mashirotheater.utils</code>）</li>
+<li>エリア定義に <code>Collider</code>（Box / Sphere / Capsule / Convex MeshCollider）が必要。</li>
 </ul>
-<h2 id="制限注意事項">制限・注意事項</h2>
+<h2 id="仕様">仕様</h2>
+<h3 id="内外判定">内外判定</h3>
 <ul>
-<li><strong>Non-Convex な MeshCollider は使用不可</strong>: Unity の <code>Collider.ClosestPoint</code> 仕様により、<code>Convex</code> チェック無しの MeshCollider では正しく判定できません。Box / Sphere / Capsule / Convex Mesh を使ってください。</li>
-<li><strong>Area が未設定（null）／Collider コンポーネントを無効化（<code>enabled = false</code>）したとき</strong>: 「エリア外」として扱い、ターゲットは（Invert オフなら）OFF になります。ただし <strong>Collider が乗っている GameObject 自体を非アクティブにした場合はこの扱いになりません</strong>。エリアを一時的に無効化したいときは Collider コンポーネント側の <code>enabled</code> を切ってください。</li>
-<li><strong>同じ対象を他のスイッチでも制御する場合</strong>: <code>MashiroGlobalOnOffSwitch</code> などと同じ GameObject を Targets に入れると、ローカル側で強制的に <code>SetActive</code> するため整合性が崩れます。<strong>他のスイッチと対象を共有しない</strong>運用にしてください。</li>
-<li><strong>エリアコライダーは <code>Is Trigger</code> 推奨</strong>: <code>ClosestPoint</code> 自体は Trigger でなくても動きますが、物理衝突を発生させないため Trigger を強く推奨します。</li>
-<li><strong>ローカル限定</strong>: 状態は同期されません。全員に同じ状態を見せたい用途には <code>MashiroGlobalOnOffSwitch</code> 等を使ってください。</li>
-</ul>
-<h2 id="パフォーマンス">パフォーマンス</h2>
+<li>判定点は <code>Networking.LocalPlayer.GetPosition()</code>（ローカルプレイヤーの足元位置）。</li>
+<li><code>area.ClosestPoint(判定点)</code> と判定点の距離の 2 乗が <code>1e-6</code> 以下（距離 1 mm 以下）のとき「内」とする。</li>
+<li><code>OnPlayerTriggerEnter</code> / <code>OnPlayerTriggerExit</code> は使わない。</li>
+<li>次の場合は「外」とする。
 <ul>
-<li>デフォルト 10Hz ポーリングで <code>ClosestPoint</code> 1 回 + 距離比較のみ。多数並べても軽量です。</li>
-<li>反応速度を最優先したい場合のみ <code>Poll Interval = 0</code> で毎フレーム判定にしてください。</li>
-<li>ステージ全域に大量に並べる場合は、<code>Poll Interval</code> を 0.2〜0.5 程度に伸ばすとさらに軽量化できます。</li>
+<li><code>area</code> が未設定</li>
+<li><code>area.enabled</code> が <code>false</code></li>
+<li>ローカルプレイヤーが取得できない</li>
 </ul>
-<h2 id="api-リファレンス">API リファレンス</h2>
+</li>
+<li><code>area</code> の GameObject のアクティブ状態は判定条件に含まない。</li>
+<li>Non-Convex の MeshCollider は <code>Collider.ClosestPoint</code> の対象外のため使用できない。</li>
+</ul>
+<h3 id="タイミング">タイミング</h3>
+<ul>
+<li><code>Start</code> で即時に判定し、結果を対象へ反映する。</li>
+<li>以後は <code>Update</code> で <code>pollInterval</code> 秒ごとに判定する。<code>pollInterval</code> が <code>0</code> 以下のときは毎フレーム判定する。</li>
+<li>最初のポーリング時刻は <code>Start</code> から <code>0</code> 〜 <code>pollInterval</code> 秒の乱数でずらす。</li>
+<li>ポーリング時は、内外が前回から変化したときのみ対象へ反映する。</li>
+</ul>
+<h3 id="反映">反映</h3>
+<ul>
+<li><code>invert</code> が <code>false</code>: 内で <code>SetActive(true)</code>、外で <code>SetActive(false)</code>。</li>
+<li><code>invert</code> が <code>true</code>: 内で <code>SetActive(false)</code>、外で <code>SetActive(true)</code>。</li>
+<li><code>targets</code> の <code>null</code> 要素は無視する。</li>
+<li><code>targets</code> の要素数は <code>Start</code> 時点の値を使う。</li>
+</ul>
+<h3 id="同期">同期</h3>
+<ul>
+<li>同期モード: <code>[UdonBehaviourSyncMode(BehaviourSyncMode.NoVariableSync)]</code></li>
+<li>同期変数なし。判定・反映はプレイヤーごとにローカルで行う。</li>
+</ul>
+<h3 id="既知の干渉">既知の干渉</h3>
+<ul>
+<li>対象の <code>SetActive</code> を直接呼ぶため、同じ GameObject を他のコンポーネント（<code>MashiroGlobalOnOffSwitch</code> 等）でも操作すると、内外が変化した時点で互いの状態を上書きする。</li>
+</ul>
+<h2 id="inspector">Inspector</h2>
 <h3 id="mashirolocalareaactivator-1">MashiroLocalAreaActivator</h3>
-<p>public 関数はありません。<strong>配線は不要</strong>で、Inspector の設定だけで動作します。</p>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>型</th>
+<th>既定値</th>
+<th>必須</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>area</code></td>
+<td><code>Collider</code></td>
+<td>なし</td>
+<td>○</td>
+<td>エリア判定に使う Collider</td>
+</tr>
+<tr>
+<td><code>targets</code></td>
+<td><code>GameObject[]</code></td>
+<td>空</td>
+<td>○</td>
+<td>内外に応じて有効・無効を切り替える GameObject</td>
+</tr>
+<tr>
+<td><code>invert</code></td>
+<td><code>bool</code></td>
+<td><code>false</code></td>
+<td>—</td>
+<td><code>true</code> で内外を反転する（外で有効、内で無効）</td>
+</tr>
+<tr>
+<td><code>pollInterval</code></td>
+<td><code>float</code></td>
+<td><code>0.1</code></td>
+<td>—</td>
+<td>判定間隔（秒）。<code>0</code> 以下で毎フレーム</td>
+</tr>
+</tbody>
+</table>
+<h2 id="api-リファレンス">API リファレンス</h2>
+<h3 id="mashirolocalareaactivator-2">MashiroLocalAreaActivator</h3>
+<p>public 関数はない。配線は不要。</p>
+<h2 id="ライセンス">ライセンス</h2>
+<p>MIT License（<code>MashiroTheater-Utils</code> 同梱の <code>LICENSE.md</code> を参照）。</p>
 <hr />
 <p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
 <ul>
@@ -124,6 +159,6 @@
 </ul>
 
 </main>
-<footer>main@2698a7a 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
+<footer>v0.2.0 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
 </body>
 </html>

@@ -35,45 +35,11 @@
 </style>
 </head>
 <body>
-<nav><a href="../../">マニュアル</a> / <a href="../">Mashiro Theater Utils</a></nav>
+<nav><a href="../../">リファレンス</a> / <a href="../">Mashiro Theater Utils</a></nav>
 <main>
 <h1 id="mashiro-page-viewer">Mashiro Page Viewer</h1>
-<p>Sprite 配列をページ送りで表示する画像ビューアです。台本・パンフレット・スライド資料などの複数ページ画像を、フェード付きでめくって閲覧できます。ページ位置を全員で同期するモードと、各自がローカルでめくるモードを選べます。</p>
-<h2 id="主な機能">主な機能</h2>
-<ul>
-<li>Sprite 配列のページ送り（前へ / 次へ、末尾と先頭はループ）</li>
-<li>ページ切り替え時のフェード（時間は調整可）</li>
-<li>ページ番号表示（&quot;3 / 12&quot; 形式）</li>
-<li><strong>グローバル同期モード</strong>（任意）: ページ位置を全プレイヤーで共有。めくった人がオーナーになり、Late Joiner にも現在ページが反映される</li>
-<li>拡大・縮小（対象 Transform のスケール操作、上限・下限あり）</li>
-<li>水平化（傾きのリセット）</li>
-<li>同じページを複数の <code>Image</code> に同時表示（メイン + 追加ディスプレイ）</li>
-</ul>
-<h2 id="同梱ファイル">同梱ファイル</h2>
-<p>配布パッケージに含まれるもの。</p>
-<table>
-<thead>
-<tr>
-<th>ファイル</th>
-<th>用途</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>MashiroPageViewer.prefab</code></td>
-<td>基本構成（表示 Image + ページ送り UI）</td>
-</tr>
-<tr>
-<td><code>MashiroImageGalleryWithUIHandle.prefab</code></td>
-<td>UI ハンドル付きのギャラリー構成例（<code>MashiroPageViewer.prefab</code> を内包）</td>
-</tr>
-<tr>
-<td><code>Images/arrow_left.png</code> <code>Images/arrow_right.png</code></td>
-<td>ページ送りボタン用の矢印画像</td>
-</tr>
-</tbody>
-</table>
-<p>以下はリポジトリ上にのみ存在するサンプルで、<strong>配布パッケージには含まれません</strong>。</p>
+<p>Sprite 配列を 1 枚ずつ <code>Image</code> に表示し、フェード付きでページ送りする UdonSharp コンポーネント（<code>MashiroPageViewer</code>）。ページ位置はローカル管理と全プレイヤー同期を切り替えられる。対象 Transform の拡大・縮小と水平化も行う。</p>
+<h2 id="構成">構成</h2>
 <table>
 <thead>
 <tr>
@@ -83,133 +49,243 @@
 </thead>
 <tbody>
 <tr>
-<td><code>台本Local_横.prefab</code> / <code>台本Local_縦.prefab</code></td>
-<td>台本用のローカル閲覧構成サンプル（横書き / 縦書き）</td>
+<td><code>MashiroPageViewer.cs</code></td>
+<td>本体スクリプト（<code>MashiroPageViewer</code>）</td>
+</tr>
+<tr>
+<td><code>MashiroPageViewer.asset</code></td>
+<td><code>MashiroPageViewer</code> の UdonSharp ProgramAsset</td>
+</tr>
+<tr>
+<td><code>MashiroPageViewer.prefab</code></td>
+<td>Canvas 配下に表示 <code>Image</code>・<code>Prev</code> / <code>Next</code> ボタン・ページ番号用 <code>TextMeshProUGUI</code>・<code>MashiroPageViewer</code> を配置したプレハブ</td>
+</tr>
+<tr>
+<td><code>MashiroImageGalleryWithUIHandle.prefab</code></td>
+<td><code>MashiroPageViewer.prefab</code> をネストし、ルートに <code>BoxCollider</code>・<code>Rigidbody</code>・<code>VRC_Pickup</code> を持つプレハブ</td>
+</tr>
+<tr>
+<td><code>台本Local_横.prefab</code></td>
+<td>台本用のローカル閲覧構成（横）（配布対象外）</td>
+</tr>
+<tr>
+<td><code>台本Local_縦.prefab</code></td>
+<td>台本用のローカル閲覧構成（縦）（配布対象外）</td>
 </tr>
 <tr>
 <td><code>BREAK_FAST/</code></td>
-<td>動作確認用のサンプルページ画像 9 枚</td>
+<td>サンプルページ画像 9 枚（配布対象外）</td>
 </tr>
 </tbody>
 </table>
-<h2 id="セットアップ">セットアップ</h2>
-<ol>
-<li>プレハブをシーンに配置するか、Canvas 配下に <code>Image</code> とページ送りボタンを用意して <code>MashiroPageViewer</code> を追加します</li>
-<li><code>Images</code> にページ画像の Sprite 配列を設定します（<strong>1 枚以上必須</strong>。空だと動作しません）</li>
-<li>ボタンの <code>OnClick</code> を API リファレンスの通り配線します</li>
-</ol>
-<h2 id="inspector-フィールド">Inspector フィールド</h2>
+<h2 id="依存">依存</h2>
+<ul>
+<li>パッケージ: <code>MashiroTheater-Utils</code>（VPM <code>com.mashirotheater.utils</code>）</li>
+<li>TextMeshPro（<code>pageText</code> が <code>TextMeshProUGUI</code> 型）</li>
+<li><code>MashiroPageViewer.prefab</code> は <code>_Common/Icons/arrow_left.png</code> / <code>_Common/Icons/arrow_right.png</code> を参照する。</li>
+</ul>
+<h2 id="仕様">仕様</h2>
+<h3 id="ページ送り">ページ送り</h3>
+<ul>
+<li><code>images</code> が null または空のとき、<code>Start</code> で <code>Debug.LogError(&quot;No images assigned to MashiroPageViewer&quot;)</code> を出して初期化を中断する。</li>
+<li>ページ番号は <code>images</code> の添字（0 始まり）で管理し、末尾の次は先頭、先頭の前は末尾へループする。</li>
+<li>フェード中（フェードアウト・フェードイン）のページ送り操作は無視する。</li>
+<li>ページ切り替えは、フェードアウト（<code>fadeDuration</code> 秒）→ Sprite 差し替え → フェードイン（<code>fadeDuration</code> 秒）の順に行う。切り替え全体の所要時間は <code>fadeDuration</code> の 2 倍。</li>
+<li>フェードは各 <code>Image</code> の <code>color</code> のアルファを、<code>Start</code> 時点の色のアルファに 0〜1 を乗じた値で変化させる。</li>
+<li>Sprite は <code>displayImage</code> と <code>additionalDisplayImages</code> の全要素（null を除く）に同じものを設定する。</li>
+<li><code>pageText</code> には <code>&quot;{現在ページ + 1} / {images.Length}&quot;</code> を表示する。更新は Sprite 差し替えのタイミングで行う。</li>
+<li><code>reverseDirection</code> が <code>true</code> のとき、<code>OnNextButtonPressed</code> と <code>OnPrevButtonPressed</code> の進む向きが入れ替わる。<code>OnPageAdvanceButtonPressed</code> は常に +1 ページ進む。</li>
+</ul>
+<h3 id="同期">同期</h3>
+<ul>
+<li>同期モード: <code>BehaviourSyncMode.Manual</code></li>
+<li>同期変数: <code>syncedIndex</code>（<code>int</code>、<code>[UdonSynced(UdonSyncMode.None)]</code>）</li>
+<li><code>useGlobalSync</code> が <code>true</code> のとき:
+<ul>
+<li>ページ送り操作を行ったプレイヤーが <code>Networking.SetOwner</code> でオーナーになり、<code>syncedIndex</code> を更新して <code>RequestSerialization</code> する。</li>
+<li>次ページの計算元は <code>syncedIndex</code>。</li>
+<li><code>OnDeserialization</code> で <code>syncedIndex</code> が表示中のページと異なればフェードアウトを開始する。この処理はフェード中でも実行され、進行中のフェードを最初からやり直す。</li>
+<li><code>Start</code> 時点の <code>syncedIndex</code> を初期ページにする。</li>
+</ul>
+</li>
+<li><code>useGlobalSync</code> が <code>false</code> のとき、ページ位置はローカルのみで管理し、<code>OnDeserialization</code> は何もしない。</li>
+<li>フェード、拡大・縮小、水平化は同期しない（実行したクライアントのみ）。</li>
+</ul>
+<h3 id="拡大縮小">拡大・縮小</h3>
+<ul>
+<li><code>scaleTarget</code> 未設定のときは倍率のみ変化し、Transform は変更しない。</li>
+<li><code>Start</code> 時点の <code>scaleTarget.localScale</code> を基準スケールとし、<code>基準スケール × 倍率</code> を適用する。</li>
+<li>倍率の初期値は <code>Mathf.Clamp(1, minScaleMultiplier, maxScaleMultiplier)</code>。</li>
+<li>1 回の操作で倍率を <code>scaleStep</code> 増減し、<code>minScaleMultiplier</code>〜<code>maxScaleMultiplier</code> に制限する。</li>
+<li><code>scaleStep</code> が 0 以下のとき、拡大・縮小操作は何もしない。</li>
+</ul>
+<h3 id="水平化">水平化</h3>
+<ul>
+<li>対象は <code>horizontalResetTarget</code>。未設定ならこのコンポーネントが付いた GameObject の Transform。</li>
+<li>対象のワールド回転（<code>eulerAngles</code>）を <code>(0, 現在の Y, 0)</code> に設定する。位置は変更しない。</li>
+</ul>
+<h2 id="inspector">Inspector</h2>
+<h3 id="mashiropageviewer">MashiroPageViewer</h3>
 <table>
 <thead>
 <tr>
 <th>フィールド</th>
+<th>型</th>
 <th>既定値</th>
+<th>必須</th>
 <th>内容</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>Display Image</code></td>
+<td><code>displayImage</code></td>
+<td><code>Image</code></td>
+<td>なし</td>
 <td>–</td>
-<td>ページを表示するメインの <code>Image</code></td>
+<td>ページを表示する <code>Image</code></td>
 </tr>
 <tr>
-<td><code>Additional Display Images</code></td>
+<td><code>additionalDisplayImages</code></td>
+<td><code>Image[]</code></td>
+<td>空</td>
 <td>–</td>
-<td>同じページを同時表示する追加の <code>Image</code> 配列（不要なら空）</td>
+<td>同じページを同時に表示する追加の <code>Image</code></td>
 </tr>
 <tr>
-<td><code>Page Text</code></td>
+<td><code>pageText</code></td>
+<td><code>TextMeshProUGUI</code></td>
+<td>なし</td>
 <td>–</td>
-<td>ページ番号表示用 <code>TextMeshProUGUI</code>（不要なら None）</td>
+<td>ページ番号の表示先。未設定なら表示しない</td>
 </tr>
 <tr>
-<td><code>Images</code></td>
+<td><code>images</code></td>
+<td><code>Sprite[]</code></td>
+<td>空</td>
+<td>○</td>
+<td>ページ画像。1 要素以上</td>
+</tr>
+<tr>
+<td><code>fadeDuration</code></td>
+<td><code>float</code></td>
+<td><code>1</code></td>
 <td>–</td>
-<td>ページ画像の Sprite 配列（必須）</td>
+<td>フェードアウト・フェードインそれぞれの秒数</td>
 </tr>
 <tr>
-<td><code>Fade Duration</code></td>
-<td><code>1</code> 秒</td>
-<td>ページ切り替え時のフェード時間</td>
-</tr>
-<tr>
-<td><code>Use Global Sync</code></td>
+<td><code>useGlobalSync</code></td>
+<td><code>bool</code></td>
 <td><code>false</code></td>
-<td>ON でページ位置を全プレイヤー同期。OFF なら各自ローカル</td>
-</tr>
-<tr>
-<td><code>Reverse Direction</code></td>
-<td><code>false</code></td>
-<td>ページ送りの方向を反転（右綴じの縦書き台本など）</td>
-</tr>
-<tr>
-<td><code>Scale Target</code></td>
 <td>–</td>
-<td>拡大・縮小の対象 Transform（未設定なら拡縮機能オフ）</td>
+<td><code>true</code> でページ位置を全プレイヤー同期する</td>
 </tr>
 <tr>
-<td><code>Scale Step</code></td>
+<td><code>reverseDirection</code></td>
+<td><code>bool</code></td>
+<td><code>false</code></td>
+<td>–</td>
+<td><code>true</code> で <code>OnNextButtonPressed</code> / <code>OnPrevButtonPressed</code> の向きを反転する</td>
+</tr>
+<tr>
+<td><code>scaleTarget</code></td>
+<td><code>Transform</code></td>
+<td>なし</td>
+<td>–</td>
+<td>拡大・縮小の対象</td>
+</tr>
+<tr>
+<td><code>scaleStep</code></td>
+<td><code>float</code></td>
 <td><code>0.1</code></td>
-<td>1 回あたりの拡縮量</td>
-</tr>
-<tr>
-<td><code>Min / Max Scale Multiplier</code></td>
-<td><code>0.5</code> / <code>2</code></td>
-<td>拡縮の下限・上限（初期スケール比）</td>
-</tr>
-<tr>
-<td><code>Horizontal Reset Target</code></td>
 <td>–</td>
-<td>水平化（傾きのリセット）の対象 Transform。<strong>未設定ならこのコンポーネントが付いた GameObject 自身が対象</strong></td>
+<td>1 回の拡大・縮小で増減する倍率</td>
+</tr>
+<tr>
+<td><code>minScaleMultiplier</code></td>
+<td><code>float</code></td>
+<td><code>0.5</code></td>
+<td>–</td>
+<td>倍率の下限</td>
+</tr>
+<tr>
+<td><code>maxScaleMultiplier</code></td>
+<td><code>float</code></td>
+<td><code>2</code></td>
+<td>–</td>
+<td>倍率の上限</td>
+</tr>
+<tr>
+<td><code>horizontalResetTarget</code></td>
+<td><code>Transform</code></td>
+<td>なし</td>
+<td>–</td>
+<td>水平化の対象。未設定ならこの GameObject 自身</td>
 </tr>
 </tbody>
 </table>
 <h2 id="api-リファレンス">API リファレンス</h2>
-<h3 id="mashiropageviewer">MashiroPageViewer</h3>
-<p>すべて <strong>UI の <code>Button.OnClick</code> から配線</strong>して使います。</p>
+<h3 id="mashiropageviewer-1">MashiroPageViewer</h3>
+<h4 id="ui-へ手配線するもの">UI へ手配線するもの</h4>
 <table>
 <thead>
 <tr>
-<th>メソッド</th>
+<th>シグネチャ</th>
 <th>用途</th>
+<th>呼び出し種別</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>OnNextButtonPressed</code></td>
-<td>「→」ボタン用。<code>Reverse Direction</code> が OFF なら次のページへ、ON なら前のページへ（末尾と先頭はループ）</td>
+<td><code>void OnNextButtonPressed()</code></td>
+<td><code>reverseDirection</code> が <code>false</code> なら +1、<code>true</code> なら −1 ページ送る</td>
+<td><code>Button.OnClick</code> から配線</td>
 </tr>
 <tr>
-<td><code>OnPrevButtonPressed</code></td>
-<td>「←」ボタン用。<code>Reverse Direction</code> が OFF なら前のページへ、ON なら次のページへ</td>
+<td><code>void OnPrevButtonPressed()</code></td>
+<td><code>reverseDirection</code> が <code>false</code> なら −1、<code>true</code> なら +1 ページ送る</td>
+<td><code>Button.OnClick</code> から配線</td>
 </tr>
 <tr>
-<td><code>OnPageAdvanceButtonPressed</code></td>
-<td><code>Reverse Direction</code> の設定に関係なく、常に次のページへ</td>
+<td><code>void OnPageAdvanceButtonPressed()</code></td>
+<td><code>reverseDirection</code> に関係なく +1 ページ送る</td>
+<td><code>Button.OnClick</code> から配線</td>
 </tr>
 <tr>
-<td><code>OnZoomInButtonPressed</code> / <code>OnZoomOutButtonPressed</code></td>
-<td>拡大 / 縮小</td>
+<td><code>void OnZoomInButtonPressed()</code></td>
+<td>倍率を <code>scaleStep</code> 上げる</td>
+<td><code>Button.OnClick</code> から配線</td>
 </tr>
 <tr>
-<td><code>OnHorizontalResetButtonPressed</code></td>
-<td>対象 Transform を水平化する（X/Z 回転を 0 にし、Y 軸の向きと位置は維持）</td>
+<td><code>void OnZoomOutButtonPressed()</code></td>
+<td>倍率を <code>scaleStep</code> 下げる</td>
+<td><code>Button.OnClick</code> から配線</td>
+</tr>
+<tr>
+<td><code>void OnHorizontalResetButtonPressed()</code></td>
+<td>対象 Transform を水平化する</td>
+<td><code>Button.OnClick</code> から配線</td>
 </tr>
 </tbody>
 </table>
-<p><code>OnNextButtonPressed</code> / <code>OnPrevButtonPressed</code> は <strong>画面上の矢印の向き</strong>に対応するメソッドです。右綴じの台本などで <code>Reverse Direction</code> を ON にすると、矢印ボタンの配線を変えずにページ送りの向きだけを反転できます。</p>
-<p>画像パネル全体をボタン化して「クリックで読み進める」ようにする場合など、押した位置と向きが対応しない配線先には <code>OnPageAdvanceButtonPressed</code> を使ってください。<code>Reverse Direction</code> の設定に左右されず、常にページ番号が増える方向へ進みます。</p>
-<p><code>OnDeserialization</code> は同期用の内部処理です（配線不要）。</p>
-<h2 id="同期の仕様">同期の仕様</h2>
-<ul>
-<li>同期方式は <strong>Manual</strong> に固定されています（スクリプト側で指定済みのため、Inspector での変更は不要です）</li>
-<li><code>Use Global Sync</code> が ON のとき、ページをめくったプレイヤーがオブジェクトのオーナーになり、ページ番号が全員に配信されます</li>
-<li>OFF のときは完全ローカルで、各自が好きなページを閲覧できます（台本の個人閲覧向け）</li>
-<li>フェード演出は各クライアントのローカル処理です</li>
-</ul>
+<h4 id="内部連携用配線不要">内部連携用（配線不要）</h4>
+<table>
+<thead>
+<tr>
+<th>シグネチャ</th>
+<th>用途</th>
+<th>呼び出し種別</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>override void OnDeserialization()</code></td>
+<td>同期されたページ位置を反映する</td>
+<td>VRChat コールバック（内部専用）</td>
+</tr>
+</tbody>
+</table>
 <h2 id="ライセンス">ライセンス</h2>
-<p>このフォルダの内容は MIT License で提供します（リポジトリルートの <code>LICENSE.md</code> を参照）。</p>
+<p>MIT License（リポジトリルートの <code>LICENSE.md</code>）。</p>
 <hr />
 <p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
 <ul>
@@ -219,6 +295,6 @@
 </ul>
 
 </main>
-<footer>main@2698a7a 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
+<footer>v0.2.0 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
 </body>
 </html>

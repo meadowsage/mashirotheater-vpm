@@ -1,186 +1,271 @@
 # OnOffSwitches
 
-任意の GameObject の ON/OFF をボタン操作で切り替えるためのスイッチ群です。
-用途に応じて以下を使い分けてください。
+GameObject の有効・無効をボタン押下・Interact・長押しで切り替えるスイッチ群。全プレイヤー同期版、ローカル版、複数ボタンで 1 つの同期状態を共有する版、3D オブジェクトの長押しで切り替える同期版を含む。
 
-| コンポーネント | 同期 | ボタン数 | 主な用途 |
-| --- | --- | --- | --- |
-| `MashiroGlobalOnOffSwitch` | 全プレイヤーで同期 | 1 | 1 つのボタンで全員に同じ状態を見せたい対象 |
-| `MashiroLocalOnOffSwitch` | ローカルのみ | 1 | プレイヤーごとに ON/OFF を切り替えたい UI |
-| `MashiroMultiGlobalOnOff` (+`MashiroMultiGlobalOnOffButton`) | 全プレイヤーで同期 | 複数 | 1 つの対象を複数ボタンから連動して制御したい場合 |
+## 構成
 
-> **複数ボタンで 1 つの対象を制御したいとき**は `MashiroGlobalOnOffSwitch` を複数並べてはいけません。
-> 各スイッチが独立した同期状態を持つため互いに競合し、特に後から Join したプレイヤーで
-> 表示が食い違います。この用途では後述の `MashiroMultiGlobalOnOff` を使ってください。
+| ファイル | 役割 |
+| --- | --- |
+| `MashiroGlobalOnOffSwitch.cs` | 1 ボタンで対象を切り替える。状態を全プレイヤーで同期する |
+| `MashiroGlobalOnOffSwitch.asset` | `MashiroGlobalOnOffSwitch` の UdonSharp ProgramAsset |
+| `MashiroLocalOnOffSwitch.cs` | 1 ボタンで対象を切り替える。状態はローカルのみ |
+| `MashiroLocalOnOffSwitch.asset` | `MashiroLocalOnOffSwitch` の UdonSharp ProgramAsset |
+| `MashiroMultiGlobalOnOff.cs` | 対象と同期状態を保持するコントローラ。複数の `MashiroMultiGlobalOnOffButton` から操作される |
+| `MashiroMultiGlobalOnOff.asset` | `MashiroMultiGlobalOnOff` の UdonSharp ProgramAsset |
+| `MashiroMultiGlobalOnOffButton.cs` | 押下を `MashiroMultiGlobalOnOff` へ転送し、ボタン色を状態に合わせる |
+| `MashiroMultiGlobalOnOffButton.asset` | `MashiroMultiGlobalOnOffButton` の UdonSharp ProgramAsset |
+| `MashiroGlobalHoldOnOffSwitch.cs` | 3D オブジェクトの長押しで対象を切り替える。状態を全プレイヤーで同期する |
+| `MashiroGlobalHoldOnOffSwitch.asset` | `MashiroGlobalHoldOnOffSwitch` の UdonSharp ProgramAsset |
 
-## 共通の使い方
+## 依存
 
-1. 対象 GameObject に各スイッチコンポーネントを追加します。
-2. インスペクタで対象・初期状態・ボタン色を設定します。**フィールド名はコンポーネントごとに異なります**（下記「Inspector フィールド」を参照）。
-3. 子に `TextMeshProUGUI` があると自動的にラベルとして扱われます。表示される文字列はコンポーネントごとに異なります（下記「ラベルの扱い」を参照）。
+- パッケージ: `MashiroTheater-Utils`（VPM `com.mashirotheater.utils`）
+- ボタン色の反映には、スイッチ（`MashiroMultiGlobalOnOffButton` を含む）と同じ GameObject の `UnityEngine.UI.Button` が必要。
+- ラベルの反映には、自身または子の `TextMeshProUGUI`（TextMeshPro）が必要。
+- `Interact()` による操作には、スイッチと同じ GameObject の Collider が必要。
+- `MashiroGlobalHoldOnOffSwitch` の色表示には、自身または子の `Renderer` が必要（未取得時は色を変更しない）。Pickup として使う場合は同じ GameObject の `VRC_Pickup` が必要。
 
-## Inspector フィールド
+## 仕様
+
+### 共通（`MashiroGlobalOnOffSwitch` / `MashiroLocalOnOffSwitch` / `MashiroMultiGlobalOnOff` / `MashiroMultiGlobalOnOffButton`）
+
+`ボタン色` / `ラベル` の節も同じ 4 コンポーネントが対象。
+
+| 項目 | 内容 |
+| --- | --- |
+| 対象の切替 | `target.SetActive(状態)`。`target` 未設定時は何もしない |
+| ボタン参照 | 自身の `GetComponent<Button>()` で取得する。未取得時は色を変更しない |
+| ラベル参照 | `GetComponentInChildren<TextMeshProUGUI>()` で取得する（自身を含む） |
+| 入力 | `OnButtonClick()`（`Button.OnClick` から配線）と `Interact()`（VRChat の Use 操作）の両方で同じ処理を行う |
+
+### ボタン色
+
+`ColorBlock` の各項目を次の値にする。`disabledColor` は変更しない。
+
+| 項目 | 値 |
+| --- | --- |
+| `normalColor` | 基準色 |
+| `selectedColor` | 基準色 |
+| `highlightedColor` | `Color.Lerp(基準色, Color.white, 0.1f)` |
+| `pressedColor` | `Color.Lerp(基準色, Color.black, 0.1f)` |
+
+基準色は ON 時と OFF 時でコンポーネントごとのフィールド（下記 Inspector）を使う。`MashiroLocalOnOffSwitch` は `updateButtonColor` が `false` のとき色を変更しない。
+
+### ラベル
+
+| コンポーネント | 挙動 |
+| --- | --- |
+| `MashiroGlobalOnOffSwitch` / `MashiroMultiGlobalOnOffButton` | `useGameObjectNameForLabel` が `true` のとき、参照取得時（`Start`。`MashiroMultiGlobalOnOffButton` は `Start` 前に `ApplyVisual` が呼ばれた場合はその時点）にラベルへ `gameObject.name` を設定する。状態による変更はしない |
+| `MashiroLocalOnOffSwitch` | `useCustomLabels` が `true` のとき、ON で `enabledLabel`、OFF で `disabledLabel` を設定する。`false` のときは `Start` 時点のラベル文字列を ON / OFF 共通で使う |
 
 ### MashiroGlobalOnOffSwitch
 
-| フィールド | 既定値 | 内容 |
-|---|---|---|
-| `Target` | – | ON/OFF を切り替える GameObject |
-| `On Color` | `(0.69, 0.239, 0.016)` | ON 時のボタン色 |
-| `Off Color` | 黒 | OFF 時のボタン色 |
-| `Initial State` | `false` | ワールド入室直後の ON/OFF |
-| `Use Game Object Name For Label` | `true` | ON のとき、子ラベルに GameObject 名を表示する |
+- 同期モード: `[UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]`
+- 同期変数: `state`（`bool`、`[FieldChangeCallback(nameof(State))]`）
+- `Start`:
+  - マスター: `State` に `initialState` を設定して反映し、`RequestSerialization()` する。
+  - マスター以外: `state` に `initialState` を代入して反映する。
+- `OnButtonClick()` / `Interact()`: 操作者がオーナーでなければ `Networking.SetOwner` でオーナーを取得し、`State` を反転して反映・`RequestSerialization()` する。
+- 受信時: `FieldChangeCallback` 経由で反映する。`OnDeserialization()` でも `Start` 完了後であれば反映する。
+- `OnPlayerJoined`: マスターが `RequestSerialization()` する。
+- 操作できるプレイヤーの制限はない。
+- 同じ `target` を複数の `MashiroGlobalOnOffSwitch` で操作した場合、各スイッチは独立した同期変数を持ち、スイッチ間で状態は連動しない。
 
 ### MashiroLocalOnOffSwitch
 
-初期状態のフィールド名だけ他と異なり、**`Start Enabled`**（Global 系の `Initial State` に相当）です。
+- `[UdonSynced]` フィールドを持たず、`[UdonBehaviourSyncMode]` も指定していない。状態はローカルのみ。
+- `Start` で `startEnabled` を状態として反映する（対象・ボタン色・ラベル）。
+- `Toggle()` / `OnButtonClick()` / `Interact()` は状態を反転して反映する。
+- `SetState(bool)` は現在の状態と異なる場合のみ反映する。
 
-| フィールド | 既定値 | 内容 |
-|---|---|---|
-| `Target` | – | ON/OFF を切り替える GameObject |
-| `Start Enabled` | `false` | ワールド入室直後の ON/OFF |
-| `Use Custom Labels` | `false` | ON のとき、ラベル文字列を ON/OFF で切り替える |
-| `Enabled Label` | `ON` | `Use Custom Labels` が ON のときの ON 時ラベル |
-| `Disabled Label` | `OFF` | `Use Custom Labels` が ON のときの OFF 時ラベル |
-| `Enabled Color` | `(0.69, 0.239, 0.016)` | ON 時のボタン色 |
-| `Disabled Color` | 黒 | OFF 時のボタン色 |
-| `Update Button Color` | `true` | OFF にするとボタン色を書き換えない（見た目を自前で管理したいとき） |
+### MashiroMultiGlobalOnOff / MashiroMultiGlobalOnOffButton
 
-### MashiroMultiGlobalOnOff（コントローラ）
+- 同期状態はコントローラ（`MashiroMultiGlobalOnOff`）の `state` 1 つのみ。ボタンは同期状態を持たない。
+- `MashiroMultiGlobalOnOff`:
+  - 同期モード: `[UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]`
+  - 同期変数: `state`（`bool`、`[FieldChangeCallback(nameof(State))]`）
+  - `Start`: マスターは `State` に `initialState` を設定して反映し、`RequestSerialization()` する。マスター以外は `state` に `initialState` を代入して反映する。
+  - `Toggle()`: 操作者がオーナーでなければ `Networking.SetOwner` でオーナーを取得し、`State` を反転して反映・`RequestSerialization()` する。
+  - 受信時: `FieldChangeCallback` 経由で反映する。`OnDeserialization()` でも `Start` 完了後であれば反映する。
+  - `OnPlayerJoined`: マスターが `RequestSerialization()` する。
+  - 反映時は `target.SetActive` と、`buttons` に登録された各ボタンの `ApplyVisual(bool)` を呼ぶ。`buttons` に未登録のボタンには状態変化を通知しない。
+- `MashiroMultiGlobalOnOffButton`:
+  - 同期モード: `[UdonBehaviourSyncMode(BehaviourSyncMode.NoVariableSync)]`
+  - `OnButtonClick()` / `Interact()`: `controller.Toggle()` を呼ぶ。`controller` 未設定時は何もしない。
+  - `Start` で `controller.GetState()` を取得してボタン色に反映する。
+  - `ApplyVisual(bool)` が `Start` より前に呼ばれた場合は、その時点でボタン・ラベルの参照を取得する。
 
-| フィールド | 既定値 | 内容 |
-|---|---|---|
-| `Target` | – | ON/OFF を切り替える GameObject |
-| `Buttons` | – | この対象を制御する全ボタン（見た目を揃えるため全て登録する） |
-| `Initial State` | `false` | ワールド入室直後の ON/OFF |
+### MashiroGlobalHoldOnOffSwitch
 
-### MashiroMultiGlobalOnOffButton（ボタン）
+- 同期モード: `[UdonBehaviourSyncMode(BehaviourSyncMode.Continuous)]`
+- 同期変数: `state`（`bool`、`[UdonSynced]`）
+- 入力:
 
-| フィールド | 既定値 | 内容 |
-|---|---|---|
-| `Controller` | – | 状態を管理する `MashiroMultiGlobalOnOff` |
-| `On Color` | `(0.69, 0.239, 0.016)` | ON 時のボタン色 |
-| `Off Color` | 黒 | OFF 時のボタン色 |
-| `Use Game Object Name For Label` | `true` | ON のとき、子ラベルに GameObject 名を表示する |
+| イベント | 動作 |
+| --- | --- |
+| `Interact()` | 長押しの計測を開始する |
+| `InputUse(false, …)`（Use 入力の解放） | 長押しを中断する |
+| `OnPickupUseDown()` | 長押しの計測を開始する |
+| `OnPickupUseUp()` / `OnDrop()` | 長押しを中断する |
 
-## ラベルの扱い
+- 計測中は 1 フレームごとに `_HoldTick` を実行する（`SendCustomEventDelayedFrames(…, 1)`）。計測していない間は実行しない。
+- 進捗: `Mathf.Clamp01((Time.time - 開始時刻) / Mathf.Max(0.1f, holdSeconds))`
+- 進捗が 1 に達すると計測を終了して状態を反転する。1 回の押下で反転は 1 回。
+- 反転時、ローカルプレイヤーがオーナーでなければ `Networking.SetOwner` でオーナーになる。
+- `Start`: オーナー、または同期を未受信の非オーナーは `state = initialState` とし、状態を反映する。
+- `OnDeserialization`: 初回受信時、または受信値が反映済みの状態と異なるときだけ状態を反映する。
+- 状態の反映: `target.SetActive(state)`（`target` 未設定時は省略）。計測中でなければ色も更新する。
+- 色: `Renderer`（自身の `GetComponent<Renderer>()`、なければ `GetComponentInChildren<Renderer>()`）に `MaterialPropertyBlock` で `_Color` を設定する。
 
-子の `TextMeshProUGUI` は自動的に検出されますが、そこに入る文字列はコンポーネントによって異なります。
+| 状態 | `_Color` |
+| --- | --- |
+| OFF | `(1, 1, 1, 1)` |
+| ON | `(0.91, 0.35, 0, 1)` |
+| 計測中 | `Color.Lerp(現在の状態の色, 反転後の色, Mathf.Lerp(0.2, 1, 進捗))` |
+| 中断時 | 現在の状態の色に戻す |
 
-- **`MashiroGlobalOnOffSwitch` / `MashiroMultiGlobalOnOffButton`**: `Use Game Object Name For Label` が ON（既定）のとき、起動時にラベルへ **GameObject 名** を設定します。OFF にするとシーンで設定した文字列のままです。いずれの場合も ON/OFF で文字列は変わりません。
-- **`MashiroLocalOnOffSwitch`**: GameObject 名は使いません。既定（`Use Custom Labels` が OFF）では**シーンで設定した文字列をそのまま保持**します。`Use Custom Labels` を ON にすると、ON 時は `Enabled Label`、OFF 時は `Disabled Label` に切り替わります。
+- ON / OFF の色はコード内の固定値で、Inspector からは変更できない。
 
-## 操作方法
+## Inspector
 
-### MashiroGlobalOnOffSwitch（2 種類サポート）
+### MashiroGlobalOnOffSwitch
 
-以下のどちらの形態でも動作します。両者の併用も可能です。
+| フィールド | 型 | 既定値 | 必須 | 内容 |
+| --- | --- | --- | --- | --- |
+| `target` | `GameObject` | なし | ○ | 有効・無効を切り替える対象 |
+| `onColor` | `Color` | `(0.69, 0.239, 0.016, 1)` | — | ON 時のボタン基準色 |
+| `offColor` | `Color` | `Color.black`（`(0, 0, 0, 1)`） | — | OFF 時のボタン基準色 |
+| `initialState` | `bool` | `false` | — | 開始時の状態 |
+| `useGameObjectNameForLabel` | `bool` | `true` | — | `true` でラベルに GameObject 名を設定する |
 
-#### A. UI ボタンとして使う
+### MashiroLocalOnOffSwitch
 
-- 対象 GameObject に `Button` コンポーネントを付け、`OnClick()` から
-  当該スクリプトの `OnButtonClick` を呼ぶように設定します。
-- UI のクリック操作で ON/OFF が切り替わります。
+| フィールド | 型 | 既定値 | 必須 | 内容 |
+| --- | --- | --- | --- | --- |
+| `target` | `GameObject` | なし | ○ | 有効・無効を切り替える対象 |
+| `startEnabled` | `bool` | `false` | — | 開始時の状態 |
+| `useCustomLabels` | `bool` | `false` | — | `true` でラベルを `enabledLabel` / `disabledLabel` で切り替える |
+| `enabledLabel` | `string` | `"ON"` | — | ON 時のラベル |
+| `disabledLabel` | `string` | `"OFF"` | — | OFF 時のラベル |
+| `enabledColor` | `Color` | `(0.69, 0.239, 0.016, 1)` | — | ON 時のボタン基準色 |
+| `disabledColor` | `Color` | `Color.black`（`(0, 0, 0, 1)`） | — | OFF 時のボタン基準色 |
+| `updateButtonColor` | `bool` | `true` | — | `false` でボタン色を変更しない |
 
-#### B. Cube などの 3D オブジェクトとして使う
+### MashiroMultiGlobalOnOff
 
-- 対象 GameObject に `Collider`（Cube の `BoxCollider` 等）を付けます。
-  `Button` コンポーネントは不要です。
-- VRChat の「Use（インタラクト）」操作で ON/OFF が切り替わります。
-- A と B を併用することもできます（例: ワールドスペースの UI ボタンに
-  3D Collider を重ねて、ポインタクリックと近接インタラクトの両方を
-  受け付ける構成）。
+| フィールド | 型 | 既定値 | 必須 | 内容 |
+| --- | --- | --- | --- | --- |
+| `target` | `GameObject` | なし | ○ | 有効・無効を切り替える対象 |
+| `buttons` | `MashiroMultiGlobalOnOffButton[]` | 空 | — | 状態変化時に `ApplyVisual` を呼ぶボタン |
+| `initialState` | `bool` | `false` | — | 開始時の状態 |
 
-### MashiroLocalOnOffSwitch（2 種類サポート）
+### MashiroMultiGlobalOnOffButton
 
-`MashiroGlobalOnOffSwitch` と同様に、以下のどちらの形態でも動作します（併用も可能）。
-切り替えはローカルのみで、他プレイヤーには同期されません。
+| フィールド | 型 | 既定値 | 必須 | 内容 |
+| --- | --- | --- | --- | --- |
+| `controller` | `MashiroMultiGlobalOnOff` | なし | ○ | 状態を管理するコントローラ |
+| `onColor` | `Color` | `(0.69, 0.239, 0.016, 1)` | — | ON 時のボタン基準色 |
+| `offColor` | `Color` | `Color.black`（`(0, 0, 0, 1)`） | — | OFF 時のボタン基準色 |
+| `useGameObjectNameForLabel` | `bool` | `true` | — | `true` でラベルに GameObject 名を設定する |
 
-#### A. UI ボタンとして使う
+### MashiroGlobalHoldOnOffSwitch
 
-- 対象 GameObject に `Button` コンポーネントを付け、`OnClick()` から
-  当該スクリプトの `OnButtonClick` を呼ぶように設定します。
-- UI のクリック操作で ON/OFF が切り替わります。
+Add Component メニュー: `MashiroTheater/Mashiro Global Hold On Off Switch`
 
-#### B. Cube などの 3D オブジェクトとして使う
-
-- 対象 GameObject に `Collider`（Cube の `BoxCollider` 等）を付けます。
-  `Button` コンポーネントは不要です。
-- VRChat の「Use（インタラクト）」操作で ON/OFF が切り替わります。
-- A と B を併用することもできます。
-
-## MashiroGlobalOnOffSwitch 固有の挙動
-
-- 状態はマスタークライアントが初期化し、`UdonSynced` により全員に同期されます。
-- 後から Join したプレイヤーには現在の状態が反映されます。
-- 操作したプレイヤーが自動的にオーナーになります。
-
-## MashiroMultiGlobalOnOff（複数ボタン連動）
-
-1 つの対象 GameObject を、複数のボタンから連動して ON/OFF する構成です。
-**同期状態をコントローラ 1 箇所だけに集約する**ことで、複数ボタン間の競合や
-Join 時の表示食い違いを構造的に防ぎます。
-
-### 構成
-
-- **`MashiroMultiGlobalOnOff`（コントローラ）**: 対象 GameObject と同期状態（唯一の真実）を
-  保持します。状態を持つのはこのコンポーネントだけです。
-- **`MashiroMultiGlobalOnOffButton`（ボタン）**: 押下をコントローラへ転送し、見た目は
-  コントローラの状態をミラーするだけ。同期状態は持ちません。1 つの対象に対して複数並べられます。
-
-### セットアップ
-
-1. 空の GameObject（または任意のオブジェクト）に `MashiroMultiGlobalOnOff` を付け、
-   **Target** に制御対象、**Initial State** に初期状態を設定します。
-2. 各ボタンの GameObject に `MashiroMultiGlobalOnOffButton` を付け、**Controller** に 1. の
-   コントローラを指定します。ボタン色・ラベルは各ボタンで設定します。
-3. コントローラの **Buttons** 配列に、2. で作った全ボタンを登録します
-   （見た目を全ボタンで同期させるために必要）。
-4. 各ボタンは `MashiroGlobalOnOffSwitch` と同様、UI `Button`（`OnClick` から
-   `OnButtonClick` を呼ぶ）と 3D `Collider`（インタラクト）の両形態に対応します。
-
-### 挙動
-
-- どのボタンから押しても、コントローラの 1 つの同期状態が反転し、対象と全ボタンの見た目が
-  一致して更新されます。
-- 同期変数はコントローラに 1 つだけなので、後から Join したプレイヤーでも状態が競合しません。
-- 操作したプレイヤーがコントローラのオーナーになります。
+| フィールド | 型 | 既定値 | 必須 | 内容 |
+| --- | --- | --- | --- | --- |
+| `target` | `GameObject` | なし | ○ | 有効・無効を切り替える対象 |
+| `holdSeconds` | `float` | `1`（`[Min(0.1)]`） | — | 切り替わるまでに押し続ける秒数 |
+| `initialState` | `bool` | `false` | — | 開始時の状態 |
 
 ## API リファレンス
 
-### MashiroLocalOnOffSwitch（ローカル）
+### MashiroGlobalOnOffSwitch
 
-| メソッド | 用途 | 呼び出し種別 |
-|---|---|---|
-| `OnButtonClick()` | 状態をトグル | `Button.OnClick` から配線 |
-| `Interact()` | 状態をトグル | オブジェクトへの Interact（配線不要） |
-| `Toggle()` / `SetState(bool)` / `GetState()` | 外部からの制御・参照 | 他の Udon から呼ぶ内部連携用 |
+#### UI へ手配線するもの
 
-### MashiroGlobalOnOffSwitch（全体同期）
+| シグネチャ | 用途 | 呼び出し種別 |
+| --- | --- | --- |
+| `void OnButtonClick()` | 状態を反転して同期する | `Button.OnClick` から配線 |
 
-| メソッド | 用途 | 呼び出し種別 |
-|---|---|---|
-| `OnButtonClick()` | 状態をトグル（全員同期） | `Button.OnClick` から配線 |
-| `Interact()` | 状態をトグル（全員同期） | オブジェクトへの Interact（配線不要） |
-| `State`（プロパティ） | 現在状態の取得（設定は内部からのみ） | 内部専用（配線不要） |
-| `OnDeserialization()` / `OnPlayerJoined()` | 同期処理 | 内部専用（配線不要） |
+#### 内部連携用（配線不要）
 
-### MashiroMultiGlobalOnOff（複数ボタン連動・コントローラ）
+| シグネチャ | 用途 | 呼び出し種別 |
+| --- | --- | --- |
+| `void Interact()` | `OnButtonClick()` を呼ぶ | VRChat コールバック（内部専用） |
+| `bool State { get; private set; }` | 現在の状態。setter は対象とボタン色へ反映する | 取得は他の Udon から可。設定は内部専用 |
+| `void OnDeserialization()` | 同期受信時に状態を反映する | VRChat コールバック（内部専用） |
+| `void OnPlayerJoined(VRCPlayerApi player)` | マスターが同期を送信する | VRChat コールバック（内部専用） |
 
-| メソッド | 用途 | 呼び出し種別 |
-|---|---|---|
-| `Toggle()` | 状態をトグル（全員同期） | ボタン側が呼ぶ内部連携用。他の Udon からも呼び出し可 |
-| `GetState()` | 現在状態の取得 | 他の Udon から呼ぶ内部連携用 |
-| `State`（プロパティ） | 現在状態の取得（設定は内部からのみ） | 内部専用（配線不要） |
-| `OnDeserialization()` / `OnPlayerJoined()` | 同期処理 | 内部専用（配線不要） |
+### MashiroLocalOnOffSwitch
 
-### MashiroMultiGlobalOnOffButton（複数ボタン連動・ボタン）
+#### UI へ手配線するもの
 
-| メソッド | 用途 | 呼び出し種別 |
-|---|---|---|
-| `OnButtonClick()` | コントローラへトグルを転送 | `Button.OnClick` から配線 |
-| `Interact()` | 同上 | オブジェクトへの Interact（配線不要） |
-| `ApplyVisual(bool)` | 表示更新 | コントローラが呼ぶ内部連携用 |
+| シグネチャ | 用途 | 呼び出し種別 |
+| --- | --- | --- |
+| `void OnButtonClick()` | 状態を反転する | `Button.OnClick` から配線 |
+
+#### 内部連携用（配線不要）
+
+| シグネチャ | 用途 | 呼び出し種別 |
+| --- | --- | --- |
+| `void Interact()` | 状態を反転する | VRChat コールバック（内部専用） |
+| `void Toggle()` | 状態を反転する | 他の Udon から呼ぶ |
+| `void SetState(bool newState)` | 状態を設定する。現在と同じ値なら何もしない | 他の Udon から呼ぶ |
+| `bool GetState()` | 現在の状態を返す | 他の Udon から呼ぶ |
+
+### MashiroMultiGlobalOnOff
+
+#### UI へ手配線するもの
+
+なし。
+
+#### 内部連携用（配線不要）
+
+| シグネチャ | 用途 | 呼び出し種別 |
+| --- | --- | --- |
+| `void Toggle()` | 状態を反転して同期する | `MashiroMultiGlobalOnOffButton` が呼ぶ。他の Udon からも呼べる |
+| `bool GetState()` | 現在の状態を返す | `MashiroMultiGlobalOnOffButton` が呼ぶ。他の Udon からも呼べる |
+| `bool State { get; private set; }` | 現在の状態。setter は対象と全ボタンへ反映する | 取得は他の Udon から可。設定は内部専用 |
+| `void OnDeserialization()` | 同期受信時に状態を反映する | VRChat コールバック（内部専用） |
+| `void OnPlayerJoined(VRCPlayerApi player)` | マスターが同期を送信する | VRChat コールバック（内部専用） |
+
+### MashiroMultiGlobalOnOffButton
+
+#### UI へ手配線するもの
+
+| シグネチャ | 用途 | 呼び出し種別 |
+| --- | --- | --- |
+| `void OnButtonClick()` | `controller.Toggle()` を呼ぶ | `Button.OnClick` から配線 |
+
+#### 内部連携用（配線不要）
+
+| シグネチャ | 用途 | 呼び出し種別 |
+| --- | --- | --- |
+| `void Interact()` | `OnButtonClick()` を呼ぶ | VRChat コールバック（内部専用） |
+| `void ApplyVisual(bool isOn)` | ボタン色を状態に合わせる | `MashiroMultiGlobalOnOff` が呼ぶ |
+
+### MashiroGlobalHoldOnOffSwitch
+
+#### UI へ手配線するもの
+
+なし。
+
+#### 内部連携用（配線不要）
+
+| シグネチャ | 用途 | 呼び出し種別 |
+| --- | --- | --- |
+| `void Interact()` | 長押しの計測を開始する | VRChat コールバック（内部専用） |
+| `void InputUse(bool value, UdonInputEventArgs args)` | Use 入力の解放で長押しを中断する | VRChat コールバック（内部専用） |
+| `void OnPickupUseDown()` | 長押しの計測を開始する | VRChat コールバック（内部専用） |
+| `void OnPickupUseUp()` | 長押しを中断する | VRChat コールバック（内部専用） |
+| `void OnDrop()` | 長押しを中断する | VRChat コールバック（内部専用） |
+| `void OnDeserialization()` | 受信した状態を反映する | VRChat コールバック（内部専用） |
+| `void _HoldTick()` | 長押しの進捗を 1 フレーム分進める | `SendCustomEventDelayedFrames` で自身が呼ぶ（内部専用） |
+
+## ライセンス
+
+MIT License（`MashiroTheater-Utils` 同梱の `LICENSE.md` を参照）。
 
 ---
 

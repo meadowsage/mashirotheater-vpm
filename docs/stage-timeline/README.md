@@ -1,859 +1,278 @@
-# StageTimelineBuilder / Manager ユーザーマニュアル
+# StageTimelineTools
 
----
+公演進行を Unity Timeline で自動化するツールセット。Builder（エディタ拡張）が公演設定から TimelineAsset と AnimationClip を生成し、Manager（UdonSharp）が VRChat 上でその再生・シーン送り・配役登録・ワープを同期する。Builder の仕様は [Builder/README.md](Builder/README.md) に記載する。
 
-## 目次
+- パッケージ名: `MashiroTheater-StageTimelineTools`（VPM: `com.mashirotheater.stagetimelinetools`）
+- フォルダ名: `StageTimelineTools/`
 
-1. [はじめに](#1-はじめに)
-2. [動作環境](#2-動作環境)
-3. [インポートとセットアップ](#3-インポートとセットアップ)
-4. [公演を設定する（StageTimelineConfig）](#4-公演を設定するstagetimelineconfig)
-   - 4-1. [Config コンポーネントの作成](#4-1-config-コンポーネントの作成)
-   - 4-2. [基本設定](#4-2-基本設定)
-   - 4-3. [プリセットを登録する](#4-3-プリセットを登録する)
-   - 4-4. [キャラクターを登録する](#4-4-キャラクターを登録する)
-   - 4-5. [シーンを作る](#4-5-シーンを作る)
-   - 4-6. [カメラを設定する（カメラタブ）](#4-6-カメラを設定するカメラタブ)
-   - 4-7. [暗転ボックスを設定する](#4-7-暗転ボックスを設定する)
-5. [タイムラインを生成する](#5-タイムラインを生成する)
-6. [Q シート CSV をエクスポートする](#6-q-シート-csv-をエクスポートする)
-7. [StageTimelineManager を設定する](#7-stagetimelinemanager-を設定する)
-8. [VRChat 上での使い方](#8-vrchat-上での使い方)
-9. [トラブルシューティング](#9-トラブルシューティング)
-10. [ランタイム操作パネルの配線](#10-ランタイム操作パネルの配線)
-11. [API リファレンス](#11-api-リファレンス)
+## 構成
 
----
-
-## 1. はじめに
-
-**StageTimelineBuilder / Manager** は、VRChat 上で行う演劇・ライブ・朗読劇などの公演進行を Unity Timeline で自動化するためのツールセットです。
-
-### できること
-
-- 公演を「シーン」単位で分割し、照明・BGM・SE・オブジェクト表示切替・アニメーション・暗転・キャラクターワープをシーンごとに設定できます
-- Cinemachine カメラのアングルをシーンに合わせて切り替えられます
-- Animator パラメータ（Int）・Animator トリガー・Udon イベント（`SendCustomEvent`）をシーン進行に合わせて発火できます
-- エディタ上でシーン構成を組んでボタンを押すだけで、Unity Timeline アセットと AnimationClip を自動生成します
-- VRChat のネットワーク機能と連携し、複数プレイヤーで同期したタイムライン再生を実現します
-- 公演中に「オーナー」権限を持つプレイヤーが再生・停止・シーン送り・シーン戻しを操作できます
-- キャラクターへのプレイヤー登録・ワープ（テレポート）機能を内蔵しています
-
-### このマニュアルの対象読者
-
-- VRChat 公演の演出担当者
-- Unity の基本操作（Inspector の設定、GameObject の配置）ができる方
-
----
-
-## 2. 動作環境
-
-| 項目 | 要件 |
+| パス | 内容 |
 |---|---|
-| Unity | VRChat SDK が対応している推奨バージョン |
-| VRChat SDK (VRCSDK3) | 最新の安定版を推奨 |
-| UdonSharp | 最新の安定版を推奨 |
-| NoribenBeamLight | **推奨（実質必須）** ※後述 |
-
-### NoribenBeamLight について
-
-照明フェード機能は `Noriben/noribenBeamLight` シェーダーを適用した MeshRenderer（ビームライト）を制御対象として認識します。NoribenBeamLight を導入していない環境では、**通常の Light コンポーネントのみ**を制御対象にするため、ビームライトのフェードアニメーションは生成されません。
-
-公演でビームライトを使用する場合は、NoribenBeamLight を事前にプロジェクトへインポートしてください。
-
----
-
-## 3. インポートとセットアップ
-
-### 手順
-
-1. 配布されている UnityPackage（`.unitypackage`）をダウンロードします
-2. Unity エディタのメニューバーから `Assets > Import Package > Custom Package...` を選び、ファイルを選択します
-3. インポート内容を確認して **Import** をクリックします
-4. インポートが完了すると、プロジェクトに以下が追加されます：
-   - `StageTimelineManager/` フォルダ（スクリプト・Prefab 一式）
-
-### シーンへの Prefab 配置
-
-1. プロジェクトウィンドウで `StageTimelineManager/StageTimelineManager.prefab` を探します
-2. Hierarchy ウィンドウにドラッグ＆ドロップして、シーンに配置します
-3. 配置された Prefab の中に、操作 UI パネルが含まれています。位置はシーンに合わせて自由に調整してください
-
-### PlayableDirector の準備
-
-タイムライン生成には、シーン上に **PlayableDirector コンポーネントを持つ GameObject** が必要です。
-
-1. 空の GameObject を作成し、名前を `TimelineDirector`（任意）などとします
-2. `Add Component > Playables > Playable Director` を追加します
-3. この時点では Timeline アセットを割り当てなくて構いません。生成時に自動で割り当てられます
-
----
-
-## 4. 公演を設定する（StageTimelineConfig）
-
-公演の全内容は **StageTimelineConfig** コンポーネントに設定します。このコンポーネントは専用のエディタウィンドウ（Stage Timeline Builder）から操作します。
-
-エディタウィンドウは Unity メニュー `Tools > Mashiro Theater > Stage Timeline Builder` から開けます。
-
-### 4-1. Config コンポーネントの作成
-
-1. `Stage Timeline Builder` ウィンドウを開きます
-2. **設定** タブが表示されます
-3. ウィンドウを開いた時点で、アクティブシーン内の既存 `StageTimelineConfig` を自動で検索します。見つかった場合はそのまま読み込まれます
-4. 見つからない場合は、**「新規作成」** ボタンをクリックします。`StageTimelineConfig - {タイトル}` という名前の GameObject が作られ、`StageTimelineConfig` コンポーネントが追加されます（作成直後はタイトルが空のため `StageTimelineConfig` という名前になります）
-5. シーン内の別の場所に既に config があるかもう一度確認したい場合は、**「シーンから読み込み」** ボタンで再検索できます
-
-> **StageTimelineManager との自動連携**: 「新規作成」時にシーン内の `StageTimelineManager` を検索し、見つかった場合は次を自動で行います。
-> - Config の GameObject を **Manager 直下** に配置します
-> - **StageTimelineManager** を Config に自動登録します
-> - Manager 配下の **PlayableDirector** を検索し、見つかれば自動登録します
-> - Manager 配下で、名前に「暗転用オブジェクト」「暗転中ガイド」を含む GameObject を、それぞれ **暗転用オブジェクト / 暗転中ガイド** のリストへ自動登録します
->
-> **二重作成防止**: 「新規作成」ボタンを押した時点でもシーン全体を再走査し、既存があれば新規作成をキャンセルしてそちらを読み込みます。  
-> **GameObject 名と「タイトル」の同期**: 「タイトル」フィールドを編集すると、GameObject 名も自動で `StageTimelineConfig - {タイトル}` に追従してリネームされます（ユーザーが手動で別名にリネームした場合は追従を停止します）。  
-> **補足**: 既存の `StageTimelineConfig` を別シーンから持ってきたい場合などは、「StageTimelineConfig」欄に直接ドラッグ＆ドロップで指定することもできます。
-
-### 4-2. 基本設定
-
-**設定** タブの各フィールドを入力します。
-
-| フィールド | 説明 |
-|---|---|
-| **タイトル**（作品情報） | 公演タイトル。生成アセットのファイル名の接頭辞と、出力先サブフォルダ名になります |
-| **標準シーン尺 (秒)**（作品情報） | 各シーンの標準の長さ（秒）。シーンごとに個別設定がない場合にこの値が使われます（最小 0.1 秒） |
-| **GeneratedBaseFolder**（生成・出力） | 生成アセットの出力先フォルダ（`Assets` 配下のパスを入力）。「フォルダ選択」ボタンからフォルダ選択ダイアログを開けます |
-| **PlayableDirector**（シーン連携） | 前手順で用意した PlayableDirector を割り当てます |
-| **StageTimelineManager**（シーン連携） | シーンに配置した StageTimelineManager Prefab を割り当てます（任意。割り当てるとタイムライン生成時に自動で設定が書き込まれます） |
-| **CinemachineBrain**（ステージカメラ） | Cinemachine の `CinemachineBrain` コンポーネントを持つ GameObject。**カメラ機能を使う場合は必須**です（未割り当てのままだとカメラトラックの生成がスキップされ、Console に Warning が出ます）。カメラを使わない場合は空欄で構いません |
-| **暗転用オブジェクト / 暗転中ガイド**（暗転） | [4-7. 暗転ボックスを設定する](#4-7-暗転ボックスを設定する) を参照 |
-| **マーカーPrefab**（ワープ可視化） | ワープ位置確認用のマーカー Prefab（任意）。タイムライン生成時にキャラクター人数分のインスタンスが自動生成され、ワープのタイミングで表示・移動します |
-
-#### 表示オプション
-
-| フィールド | 説明 |
-|---|---|
-| **高度な機能を表示** | ON にすると、Animator パラメータなどの高度な機能 UI を表示します。OFF でも既存データは保持されます。Animator パラメータを使う場合は ON にしてください |
-
-### 4-3. プリセットを登録する
-
-**プリセット** タブでは、複数のシーンにわたって繰り返し使う照明・オブジェクト・アニメーション・BGM・SE をまとめて登録できます。
-
-プリセットを使うメリット：
-- 各シーンのエントリでは、登録済みプリセットを**プルダウンから選ぶだけ**で参照できます（識別 ID は内部で自動採番されるため、入力・管理は不要です）
-- 実際の GameObject や AudioSource の差し替えが必要になった場合、プリセット側を1か所変えるだけで全シーンに反映されます
-
-各プリセットの下部にある **「削除」** ボタンでプリセットを削除できます。照明・BGM・SE には **「デフォルト設定を反映」** ボタンがあり、そのプリセットを参照している全シーンの「デフォルト」指定エントリへ、プリセットの現在値を一括反映します。
-
----
-
-#### 照明プリセット（Light Presets）
-
-| フィールド | 説明 |
-|---|---|
-| **表示名** | エディタ上での表示名。空欄のまま Light Root を割り当てると、そのオブジェクト名が自動で入ります |
-| **Light Root** | 照明の親 GameObject。子に `Light` コンポーネントや NoribenBeamLight の MeshRenderer を含む GameObject を指定します |
-| **Default Intensity** | 照明のデフォルト輝度。シーン側で「デフォルト」を選んだときに使われます |
-| **Default Color** | 照明のデフォルト色 |
-
-> **Light Root の構成について**: Light Root 以下を子孫方向に検索し、`Light` コンポーネントおよび `Noriben/noribenBeamLight` シェーダーを持つ MeshRenderer を自動で収集します。
-
-> **「LightGroup をスキャン」ボタン**: 「＋ 照明を追加」ボタンの隣にあります。アクティブシーンを走査し、まだ照明プリセットに登録されていない（Light Root として参照されていない）`MashiroLightGroup` を見つけて、まとめて照明プリセットへ追加します。追加時は **表示名にオブジェクト名**、**Default Color に `MashiroLightGroup` の初期色** を自動で取り込みます。
-
----
-
-#### オブジェクト切替プリセット（Toggle Presets）
-
-| フィールド | 説明 |
-|---|---|
-| **表示名** | エディタ上での表示名 |
-| **Target** | 表示/非表示を切り替える GameObject |
-
----
-
-#### アニメーションプリセット（Object Animation Presets）
-
-| フィールド | 説明 |
-|---|---|
-| **表示名** | エディタ上での表示名 |
-| **Target** | Animator を持つ GameObject |
-| **Clip** | 再生する AnimationClip |
-
----
-
-#### BGM プリセット（BGM Presets）
-
-| フィールド | 説明 |
-|---|---|
-| **表示名** | エディタ上での表示名 |
-| **Source** | 音源となる AudioSource |
-| **Default Volume** | デフォルト音量（0〜1）。シーン側で「デフォルト」を選んだときに使われます |
-
----
-
-#### SE プリセット（SE Presets）
-
-| フィールド | 説明 |
-|---|---|
-| **表示名** | エディタ上での表示名 |
-| **Source** | 音源となる AudioSource |
-| **Default Volume** | デフォルト音量（0〜1） |
-
-> **カメラのアングル（カメラプリセット）** は **カメラ** タブで登録します。[4-6. カメラを設定する（カメラタブ）](#4-6-カメラを設定するカメラタブ) を参照してください。
-
----
-
-#### Animator パラメータプリセット（Animator Parameter Presets）
-
-> 4-2 の「**高度な機能を表示**」が ON のときに限りこのセクションが表示されます。
-
-AnimatorController の Int パラメータ（State Machine の遷移条件などに使うもの）をシーンから操作するためのプリセットです。
-
-| フィールド | 説明 |
-|---|---|
-| **表示名** | エディタ上での表示名 |
-| **Target Animator** | 操作対象の Animator |
-| **Parameter Name (Int)** | AnimatorController 側で定義されている Int パラメータ名 |
-| **値の選択肢 (Int → 名前)** | シーン側のプルダウンに表示する `(Int 値, 名前)` のペア一覧。`＋ 値を追加` で行を追加、`−` で削除します |
-
-##### 値の選択肢について
-
-「値の選択肢」リストは「**この AnimatorController が取りうる State 番号にユーザー向けの名前を付けて並べておくもの**」です。シーン側エントリはこの行を ID 参照するため、以下の挙動になります。
-
-- **名前を変更**: シーン側のプルダウン表示が自動で追従します（再選択不要）
-- **Int 値を変更**（例: `1=Walk` を `2=Walk` に変更）: その「Walk」を選んでいた全シーンが**新しい Int 値 (2) に自動追従**します。タイムラインを再生成すれば Animator には 2 が送られます
-- **行を削除**: その値を選んでいたシーンは「**[参照切れ — 再選択してください]**」と表示されます。再選択せずにタイムライン生成するとそのエントリはスキップされ Console に Warning が出ます
-- **同じ Int を複数行に登録**: プリセット編集 UI に Warning が表示されます（シーン側プルダウンは先頭の名前で統一表示されます）
-
-> **既存データからの移行**: 旧データ（値の選択肢機能の追加前に作成されたシーン）でも、シーン編集タブを開いた時点で `intValue` から自動的に該当行を引き当てて参照を作成します。シーン編集タブを一度開くだけで移行が完了します。
-
----
-
-#### Animator トリガープリセット（Animator Trigger Presets）
-
-> 4-2 の「**高度な機能を表示**」が ON のときに限りこのセクションが表示されます。
-
-AnimatorController の Trigger パラメータ（`SetTrigger`）をシーンから送るためのプリセットです。1 つの Animator に対して、送れる Trigger を一覧登録しておきます。
-
-| フィールド | 説明 |
-|---|---|
-| **表示名** | エディタ上での表示名 |
-| **Animator** | 操作対象の Animator |
-| **送れる Trigger 一覧** | `Trigger 名` と `表示名` のペア一覧。シーン側はこの行をプルダウンで選択します |
-
-登録手順・生成時のチェック内容・可視化トラックの詳細は [`Builder/README.md`](Builder/README.md) を参照してください。
-
----
-
-#### Udon イベントプリセット（Udon Event Presets）
-
-> 4-2 の「**高度な機能を表示**」が ON のときに限りこのセクションが表示されます。
-
-シーンの進行に合わせて `UdonSharpBehaviour` の public・引数なしメソッドを `SendCustomEvent` で呼ぶためのプリセットです。
-
-| フィールド | 説明 |
-|---|---|
-| **表示名** | エディタ上での表示名 |
-| **対象 Udon** | 送信先の `UdonSharpBehaviour` |
-| **呼べるイベント一覧** | `関数名` / `表示名` / `Ownerのみ` の一覧。シーン側はこの行をプルダウンで選択します |
-
-`Ownerのみ` の使い分け、生成時のチェック内容などの詳細は [`Builder/README.md`](Builder/README.md) を参照してください。
-
----
-
-### 4-4. キャラクターを登録する
-
-**プリセット** タブの「キャラクター」セクションでキャラクターの一覧を登録します。
-
-**「＋ キャラクターを追加」** ボタンで行を増やし、テキスト欄にキャラクター名を入力します。この名前が VRChat 上の登録 UI に表示されます。行の **「−」** ボタンで削除できます。
-
-登録したキャラクターは、シーンの [ワープ（Warp）](#ワープwarp) 設定で使用します。
-
----
-
-### 4-5. シーンを作る
-
-**シーン一覧** タブで各シーンを追加・編集します。
-
-タブ上部のツールバーでは次を切り替えられます。
-
-- **閲覧モード ON / OFF**: ON にすると全シーンが読み取り専用の一覧表示になり、誤編集を防げます
-- **表示フィルタ**: 「オブジェクト / アニメ / 照明 / BGM / SE / 暗転 / ワープ」（高度な機能が ON のときは「Anim Param / Anim Trigger / Udon Event」も）のボタンで、編集欄に出す種別を絞り込めます。「全選択」「全解除」で一括切替できます
-
-#### 効果の指定モデル（重要）
-
-各シーンの編集欄は **「追加」セクション** と **「現在の演出」セクション** の 2 部構成です。
-
-- **追加セクション**: そのシーンで**新しく始める**効果を登録します。種別ごとに **「＋ プリセット選択」**（登録済みプリセットから選ぶ）と **「＋ 自由指定」**（対象を直接割り当てる）の 2 つのボタンがあります。ここで作られるのは常に**開始側**（オブジェクトの表示 / アニメーションの再生 / 照明・BGM のフェードイン）です
-- **現在の演出セクション**: 前のシーンまでに始まって**まだ続いている**効果が自動で一覧表示されます。各行のプルダウンで、そのシーンでの扱い（維持 / 終了 / 変更 など）を指示します
-
-つまり「いつ消すか」「いつ変えるか」は、開始したシーンではなく**終わらせたいシーンの「現在の演出」で指示**します。プリセットを使うかどうかは追加時のボタンで決まり、その後は対象欄がプルダウン表示（プリセット）かオブジェクト欄（自由指定）かで区別されます。
-
-#### シーン共通設定
-
-各シーンには以下の共通設定があります。
-
-| フィールド | 説明 |
-|---|---|
-| **シーン名** | UI に表示されるシーン名（例:「第1幕 オープニング」） |
-| **キッカケ** | 次のシーンへのキューテキスト。操作パネルの「次のキュー」欄に表示されます |
-| **次のシーンを統合** | ON にすると、このシーンが終わったとき停止せず自動で次のシーンへ進みます。統合されたシーンは Builder 上「シーン 2-2」のように表示され、Q シートでは 1 行にまとめられます |
-| **秒数を指定** | ON にすると、このシーンだけ独自の長さを指定できます |
-| **シーン尺 (秒)** | 「秒数を指定」が ON の場合のシーン長さ（秒） |
-
----
-
-#### オブジェクト表示切替（Toggle）
-
-指定した GameObject を表示・非表示にします。
-
-**追加（表示を始める）**
-
-| 項目 | 説明 |
-|---|---|
-| **対象** / **対象オブジェクト** | 「＋ プリセット選択」ならプリセットのプルダウン、「＋ 自由指定」なら GameObject 欄 |
-| **出現タイミング** | `最初`（シーン開始時）または `最後`（シーン終了時） |
-| **遅延(秒)** | タイミングからの遅延（「最初」のときのみ有効） |
-
-**現在の演出（表示を終える）**
-
-有効なオブジェクトの行で、プルダウンから `維持` / `OFF` を選びます。`OFF` を選ぶと `最初` / `最後` のタイミングと **遅延(秒)** を指定できます（遅延は「最初」のときのみ有効）。
-
----
-
-#### オブジェクトアニメーション（Object Animation）
-
-指定した Animator に AnimationClip を再生させます。
-
-**追加（再生を始める）**
-
-| 項目 | 説明 |
-|---|---|
-| **対象** | プリセットのプルダウン、または Animator を持つ GameObject と AnimationClip の直接指定 |
-| **遅延(秒)** | シーン開始から再生開始までの遅延 |
-| **継続** | `維持` は次の終了指示またはタイムライン末尾まで再生を継続。`単発` はそのシーンのみ再生し、次のシーン開始時に自動停止します |
-
-**現在の演出（再生を終える）**
-
-有効なアニメーションの行で、プルダウンから `維持` / `終了` を選びます。`終了` を選ぶと `最初` / `最後` のタイミングと **遅延(秒)** を指定できます（遅延は「最初」のときのみ有効）。
-
-> **単発再生について**: 「効果音的に1度だけ再生し、次のシーンに持ち越したくない」アニメーションには `単発` を選択してください。明示的な終了指示は不要になります。
-
----
-
-#### 照明フェード（Light Fade）
-
-指定した照明を、フェードさせながら輝度・色を変化させます。
-
-**追加（フェードインさせる）**
-
-| 項目 | 説明 |
-|---|---|
-| **対象** / **Light Root** | プリセットのプルダウン、または照明の親 GameObject |
-| **Intensity** | フェード後の目標輝度 |
-| **Color** | フェード後の目標色 |
-| **フェード秒数** | フェードにかかる時間（秒） |
-| **遅延(秒)** | シーン開始からフェード開始までの遅延（秒） |
-
-プリセットを選び直すと、Intensity / Color はそのプリセットのデフォルト値で上書きされます。
-
-**現在の演出（変える・消す）**
-
-有効な照明の行で、プルダウンから次を選びます。
-
-| 選択肢 | 挙動 |
-|---|---|
-| **維持** | 前のシーンの状態をそのまま継続 |
-| **変更** | このシーンで Intensity / Color / フェード秒数 / 遅延(秒) を指定して変化させる |
-| **デフォルト** | プリセットのデフォルト輝度・色へ戻す（プリセット参照のエントリのみ表示）。値はプリセット側の「デフォルト設定を反映」ボタンで一括更新できます |
-| **フェードアウト** | 輝度 0 まで落とす（色指定は無視されます） |
-
-> **遅延の下限**: フェードイン / 変更の発火は、シーン境界の 1 フレームで前シーンに新しい光が混ざるのを防ぐため、遅延 0 を指定した場合でもシーン開始から最低 0.1 秒後になります。
-
----
-
-#### BGM
-
-指定した AudioSource の音量・ピッチをフェードさせます。
-
-**追加（フェードインさせる）**
-
-| 項目 | 説明 |
-|---|---|
-| **AudioSource** | プリセットのプルダウン、または AudioSource の直接指定 |
-| **音量** | 目標音量（0〜1） |
-| **フェード秒数** | フェードにかかる時間（秒） |
-| **遅延(秒)** | シーン開始からフェード開始までの遅延（秒） |
-
-**現在の演出（変える・消す）**
-
-有効な BGM の行で、プルダウンから `維持` / `変更` / `デフォルト`（プリセット参照のみ） / `フェードアウト` を選びます。`変更` では音量・ピッチ・フェード秒数を指定できます。
-
-> **再生の仕組み**: BGM は AudioSource を有効化したうえで `PlayOnAwake` で発火させます。タイムライン生成時に対象 AudioSource の `Play On Awake` を自動的に ON へ揃えるため、初回の有効化でも確実に再生が始まります。
-
----
-
-#### SE
-
-指定した AudioSource を1回再生します。「現在の演出」には現れません（開始のみの効果です）。
-
-| 項目 | 説明 |
-|---|---|
-| **AudioSource** | プリセットのプルダウン、または AudioSource の直接指定 |
-| **音量** | 再生音量（0〜1） |
-| **遅延(秒)** | シーン開始からの遅延（秒） |
-
-> **同じ SE を1シーン内で複数回鳴らす**: 同一の AudioSource を指す SE エントリを複数追加し、それぞれ異なる **遅延(秒)** を設定してください。後続の再生開始時に直前の活性区間を切り詰めて再トリガするため、間隔がクリップ長より短い場合は前の音が途中で途切れます。
-
----
-
-#### Animator パラメータ（Animator Parameter）
-
-> 4-2 の「**高度な機能を表示**」が ON のときに限り、シーン内に追加ボタンが表示されます。OFF にしても既存エントリのデータは破棄されません。
-
-シーン開始時に、指定した Animator の Int パラメータに値をセットします。AnimatorController 側のステート遷移トリガに使う想定です。
-
-| フィールド | 説明 |
-|---|---|
-| **Binding Mode** | `Direct`（直接指定）または `Preset`（プリセット参照）。`＋ プリセット選択` ボタンで作成すると Preset、`＋ 自由指定` ボタンで作成すると Direct になります |
-| **Preset** | 参照するプリセット（Preset の場合）。プリセット側の Animator / Parameter Name が自動で使われます |
-| **Animator** | 操作対象の Animator（Direct の場合） |
-| **パラメータ名** | Int パラメータ名（Direct の場合） |
-| **値** | 設定する Int 値。**Preset の場合はプリセットの「値の選択肢」からプルダウンで選択**、Direct の場合は数値入力欄になります |
-| **遅延 (秒)** | シーン開始から値を適用するまでの遅延秒数 |
-
-##### 動作について
-
-- **値の適用タイミング**: シーン開始時刻に「遅延 (秒)」を加えた時点で、対象 Animator の指定パラメータに `SetInteger` 相当の値が反映されます
-- **シーン頭の安全マージン**: ネットワーク同期のずれを吸収するため、内部的に最低限のリードタイムが加算されます（遅延 0 でも数フレームの猶予あり）
-- **参照切れ時の挙動**: Preset モードで参照していた「値の選択肢」が消えている、または別プリセットに切り替えた直後でその ID が見つからない場合、シーン編集 UI には警告 HelpBox が表示され、タイムライン生成時にはそのエントリだけスキップ + Console Warning となります。**安全側に倒すため古い Int 値を送り続けることはしません**
-- **可視化トラック**: タイムライン生成時、Timeline 上に `Animator Params` グループが作成され、各パラメータの値変化を区間クリップとして可視化します（muted なので再生には影響しません）。クリップ名は値の名前（例: `Walk (= 1)`）になります
-
----
-
-#### 暗転（Blackout）
-
-暗転用のボックスをフェードイン/フェードアウトさせます。追加セクションで登録するのは暗転（フェードイン）です。明転は、暗転が続いているシーンの「現在の演出」で `暗転` の行のプルダウンから `解除` を選んで指示します。
-
-暗転・解除のいずれも指定できる項目は同じです。
-
-| 項目 | 説明 |
-|---|---|
-| **フェード秒数** | フェードにかかる時間（秒） |
-| **遅延(秒)** | シーン開始から暗転開始/解除までの遅延（秒） |
-
-> **遅延の下限**: 暗転・明転の発火は、シーン境界の 1 フレームで前シーンに暗転が漏れるのを防ぐため、遅延 0 を指定した場合でもシーン開始から最低 0.1 秒後になります。
-
-暗転に使用するオブジェクトは [4-7. 暗転ボックスを設定する](#4-7-暗転ボックスを設定する) で設定します。
-
----
-
-#### ワープ（Warp）
-
-登録されたキャラクターを担当するプレイヤーを、指定した場所へテレポートします。
-
-| 項目 | 説明 |
-|---|---|
-| **キャラクター** | ワープ対象のキャラクター（4-4 で登録したリストから選択） |
-| **タイミング** | `最初`（シーン開始時）または `最後`（シーン終了時） |
-| **遅延(秒)** | タイミングからの遅延（秒）。「最初」のときのみ有効 |
-| **ワープ先Transform** | テレポート先の Transform。位置と Y 軸回転が使用されます。**「新規作成」** ボタンを押すと、Gizmo 付きのワープポイントを自動生成して割り当てます |
-
-> **向きの Gizmo**: ワープ先に `MashiroWarpPointGizmo`（編集時専用）が付与され、Scene ビューに
-> 位置（小さな円）とワープ時の向き（Y 軸回転＝矢印）が表示されます。Transform を回すと矢印の向きが
-> 変わるので、ワープ後にプレイヤーが向く方向を確認しながら調整できます。
-> - **付与/除去の基準**: Builder ウィンドウを開いている間、**シーン内のどれかのワープでワープ先として
->   使われている transform には自動付与**、**どこのワープにも使われていない Gizmo は自動除去**されます
->   （作成方法は問いません）。付け忘れ・消し漏れが起きないよう一括で整合します。
-> - 実行時には影響しません。
-
-> **動作条件**: 対象キャラクターに誰かが登録されている場合のみ、テレポートが発動します。  
-> 再生セッションをまたいで同じワープが二重発動することはありません（セッション ID で管理）。
-
----
-
-### 4-6. カメラを設定する（カメラタブ）
-
-シーン切替に合わせて Cinemachine カメラ（Cinemachine 2.x の `CinemachineVirtualCamera`）のアングルを切り替えます。**カメラ** タブは「アングル」と「シーン別カメラワーク」の 2 セクションで構成されます。
-
-カメラを使う場合は、**設定** タブの **CinemachineBrain** の割り当てが必須です（未割り当てだとカメラトラックは生成されません）。
-
-#### アングル（カメラプリセット）
-
-| フィールド | 説明 |
-|---|---|
-| **表示名** | エディタ上での表示名。空欄のまま Virtual Camera を割り当てると、そのオブジェクト名が自動で入ります |
-| **Virtual Camera** | `CinemachineVirtualCamera` コンポーネントを持つ GameObject |
-
-> Priority は自動制御されます（非アクティブ = 0 / アクティブ = 20）。FOV は各 Virtual Camera の `m_Lens.FieldOfView` の値がそのまま使われます。画角を変えたい場合は vcam 自体を調整してください。
-
-#### シーン別カメラワーク
-
-各シーンに設定できる項目は次の 3 つです（シーンの追加・並び替えや他の効果の編集は **シーン一覧** タブで行います）。
-
-| 項目 | 説明 |
-|---|---|
-| **カメラ** | 「アングル」で登録したカメラをプルダウンから選択します |
-| **切替タイミング** | `最初`（シーン開始時）または `最後`（シーン終了時） |
-| **遅延(秒)** | タイミングからの遅延秒数（「最初」のときのみ有効） |
-
-> **アクティブカメラの維持**: あるシーンでカメラを指定すると、次にカメラ指定を持つシーンが現れるまで、そのカメラがアクティブのまま維持されます。  
-> **複数カメラの併用**: 1 シーンに複数のカメラ指定を並べた場合、時刻順で後勝ちになります。  
-> **境界跨ぎ対策のリード時間**: シーン境界ちょうどでカメラを切り替えると、前シーンの最終フレームで次のアングルに切り替わって見えることがあります。これを防ぐため、「最初」指定は最低 0.1 秒シーン内側へずらし（遅延がこれより大きい場合は遅延を優先）、「最後」指定はシーン終了の 0.2 秒手前で切り替えます。シーン尺がリード時間より短い場合は Console に Warning を出します。
-
----
-
-### 4-7. 暗転ボックスを設定する
-
-**設定** タブの「暗転」セクションで設定します。
-
-| フィールド | 説明 |
-|---|---|
-| **暗転用オブジェクト** | 暗転演出で使用するボックス状オブジェクトの親（Renderer が必須）。リスト形式で複数指定可能 |
-| **暗転中ガイド** | 暗転中に表示するガイド用オブジェクト（任意）。リスト形式で複数指定可能 |
-
----
-
-## 5. タイムラインを生成する
-
-シーン設定が完了したら、タイムライン生成を実行します。
-
-### 生成前チェックリスト
-
-- **タイトル** が入力されている
-- **PlayableDirector** が割り当てられている
-- シーンが 1 つ以上登録されている
-- 照明フェードを使用する場合、`Light Root` 以下に `Light` または NoribenBeamLight MeshRenderer がある
-- ワープを使用する場合、**ワープ先Transform** が全て割り当てられている
-- 暗転を使用する場合、**暗転用オブジェクト** が設定されている
-- カメラを使用する場合、**CinemachineBrain** が割り当てられている
-
-上の 3 つが揃うまで、生成ボタンは押せません。
-
-### 生成手順
-
-1. `Stage Timeline Builder` ウィンドウの **シーン一覧** タブを開きます
-2. ページ最下部の **「タイムライン生成」** ボタンをクリックします
-3. 処理が完了すると、`{GeneratedBaseFolder}/{タイトル}/` に以下のアセットが生成されます：
-   - `{タイトル}_AllScenes.playable` — メインの TimelineAsset
-   - `Anim/` フォルダ — 照明・BGM・SE・ワープマーカー用 AnimationClip
-   - `StageTimelineConfigBackup.json` — 設定内容の JSON バックアップ
-4. `StageTimelineManager` を割り当てている場合、シーン境界・キャラクター・ワープ情報が自動で書き込まれます
-
-> **GeneratedBaseFolder が空の場合**: 既定の出力先 `Assets/MashiroSmallTheater/StageTimelineManager/Generated` が使われます。  
-> **再生成について**: 設定を変更した場合は、再度「タイムライン生成」を押してください。既存のアセットは上書きされます。
-
----
-
-## 6. Q シート CSV をエクスポートする
-
-演出 Q シートの代替・参考資料として、シーン構成を CSV で書き出せます。Excel / Google Sheets で開いて、他の演出担当が作った Q シートと見比べながら設定を転記する用途を想定しています。インポート機能はありません（出力専用）。
-
-### 出力手順
-
-1. `Stage Timeline Builder` ウィンドウの **設定** タブを開きます
-2. 一番下の **「Q シート CSV を出力」** ボタンをクリックします
-3. 保存先ダイアログでファイル名と保存先を指定します
-4. 保存後、ファイルがあるフォルダが自動で開きます（OS の Finder / Explorer）
-
-### 出力フォーマット
-
-- 文字コード: UTF-8 (BOM 付き)
-- 区切り: カンマ
-- セル内改行: LF（Excel / Google Sheets で 1 セル内の複数行として展開されます）
-
-### CSV の構成
-
-ファイル先頭に `# Stage Timeline Builder Export` の 1 行、続いて **メタ情報ブロック**（タイトル / 出力日時）が `キー,値` の形式で並び、空行を挟んで **シーン表** が続きます。
-
-シーン表のカラム：
-
-| カラム | 内容 |
-|---|---|
-| Cue | Cue 番号（Builder の「シーン X」と同じ採番） |
-| シーン | シーン名（チェーン先頭シーンのもの） |
-| キッカケ | キッカケ文（チェーン先頭シーンのもの） |
-| 照明 | 照明フェード（FI / FO / CHG）と色・強度 |
-| 暗転 | 暗転 FI / FO。指示なしでも暗転継続中は「暗転中」と表示 |
-| BGM | BGM の FI / FO / CHG とボリューム・ピッチ |
-| SE | SE の再生 |
-| オブジェクト | オブジェクトの ON / OFF（Toggle） |
-| アニメーション | Play / Stop と Hold / SingleShot の別 |
-| ワープ | キャラクター → 行き先名 |
-| カメラ | カメラ切替の指示 |
-| 尺 | 該当 Cue 全体の総尺（`Xs`） |
-
-空のセルには `-` が入ります。
-
-### Cue と「次のシーンを統合」の扱い
-
-- **Cue 番号 = Builder の「シーン X」表示と同じ番号**です。
-- **「次のシーンを統合」が ON のシーンは、続くシーンと同じ Cue として 1 行にまとめて出力**されます。Builder 側では「シーン 2-2」のように表示される 2 番目以降のシーンが、Q シート上では「シーン 2」の行に統合されます。
-- 統合されたシーンの効果は、内部的なサブシーン開始時刻ぶん時間オフセットされた状態で同じセルに書き出されます。例: 1 番目のサブシーンの尺が 10s なら、2 番目のサブシーンの効果は `[+10.0s] ...` として表示されます。
-- **シーン名はサブシーン分も結合されて出力されます**（例: `暗転 / ワープ・心音FI`）。サブシーン側にもシーン名を入力できます（キッカケはチェーン先頭シーンのものだけが採用されます）。
-
-### セル内表記
-
-行は **時間オフセット → アクションタグ → ターゲット名 → 尺 → 付加パラメータ** の順で並びます。
-
-- **時間オフセット**: `[+0.5s]` `[end]` `[end+1.0s]`（即時の場合は省略）
-- **アクションタグ**: `[FI]` `[FO]` `[CI]` `[CO]` `[Change]` `[ON]` `[OFF]` `[Play]` `[Stop]`
-  - 0.0s（即時）のフェードは `[FI]/[FO]` ではなく **`[CI]/[CO]`**（カットイン・カットアウト）になります
-  - SE とワープはアクションが 1 種しかないためタグを省略
-- **フェード尺**: ターゲット名のあとに `1.0s`（0.0s のときは省略）
-- **照明色**: `暖色(#FFCC88)` のように **色カテゴリ + HEX**。白に十分近い色は省略
-- **強度**: `i=0.7`（1.0 のときは省略）
-- **音量・ピッチ**: `vol=0.8 pitch=0.9`。**BGM の FO のときは `vol=` を省略**（到達点が 0 で意味を持たないため）
-- **アニメーション**: `[Play] target (clip, Hold)` の形式。Stop は `[Stop] target`
-- **略号**: `FI` (Fade In) / `FO` (Fade Out) / `CI` (Cut In) / `CO` (Cut Out) / `Change` / `ON` / `OFF` / `Play` / `Stop`
-
-色カテゴリは色相で `赤 / 橙 / 黄 / 黄緑 / 緑 / 水色 / 青 / 紫 / 桃` の 9 区分、ほぼ無彩色は `白`、極めて暗い色は `暗` に丸めます（HEX が併記されるので正確な色は HEX で確認できます）。
-
-### 出力例
-
-```
-[+0.5s][FI] 裁判官ライト 0.5s 暖色(#FFCC88) i=0.7
-[FI] 通常時照明 1.0s
-[CI] 全体照明                     ← 即時（フェード尺 0s）はカットイン表記
-[Change] シーリング_通常 3.0s 青(#6270C9)
-```
-
-```
-[Play] ジル用Station (station1_1, Hold)
-[Stop] ジル用Station
-```
-
-```
-ジル → 中央正面
-[end+1.0s] シンディ → 上手側
-```
-
-### 注意点
-
-- このエクスポートは出力専用で、生成された CSV から Builder 側に取り込む機能はありません
-- カラム名・並び順を演出 Q シートと完全一致させているわけではありません。あくまで「見比べやすい」ことを優先しています
-- 「舞台」「小道具」「エフェクト」のように演出シートでカテゴリ分けされている項目は、Builder 側のデータ構造に合わせて「オブジェクト」「アニメーション」にまとめて出力されます
-
----
-
-## 7. StageTimelineManager を設定する
-
-シーンに配置した Prefab には、UIが設定済みの `StageTimelineManager` が含まれています。基本的には以下の最低限の割り当てのみ行えば動作します。
-
-### 最低限必要な設定
-
-| フィールド | 説明 |
-|---|---|
-| **Timeline** | 生成された `{タイトル}_AllScenes.playable` を持つ `PlayableDirector` を割り当てます |
-
-タイムライン生成時に `StageTimelineManager` を割り当てていた場合、チェックポイント・キャラクター・ワープ情報は自動で入力済みです。手動で変更する必要はありません。
-
-### Inspector の主要フィールド（参考）
-
-以下は確認・調整が必要になった場合の参考情報です。
-
-**再生設定**
-
-| フィールド | デフォルト | 説明 |
+| `StageTimelineManager.prefab` | `StageTimelineManager`・操作パネル UI・`PlayableDirector`（子 GameObject `Timeline`。`timeline` に配線済み）・配役登録行 10 行・暗転用オブジェクト（`暗転Box`・`暗転中ガイド`）を含むプレハブ。Builder の初期設定でシーンに Manager が無い場合に配置される |
+| `Manager/StageTimelineManager.cs` / `.asset` | 再生・シーン送り・配役登録・ワープ・タイムライン連動イベントを処理する UdonSharpBehaviour と ProgramAsset |
+| `Manager/StageCharacterRegistrationRow.cs` / `.asset` | 配役登録 UI の 1 行分。登録・解除要求をネットワークイベントで送る UdonSharpBehaviour と ProgramAsset |
+| `Prefabs/CharacterRegistrationRow.prefab` | 配役登録行のプレハブ |
+| `Prefabs/CheckPointLIne.prefab` | プログレスバー上のチェックポイント線（`checkpointLinePrefab` 用） |
+| `Prefabs/WarpPointMarker.prefab` | ワープ可視化マーカー（`StageTimelineConfig.warpMarkerPrefab` 用） |
+| `Builder/` | エディタウィンドウ・タイムライン生成・`StageTimelineConfig`。詳細は [Builder/README.md](Builder/README.md) |
+| `Example/` | サンプルシーン `StageTimelineToolsExample.unity`（`StageTimelineConfig` 設定済み）と、シーンが参照するアニメーション・音声・マテリアル・ライティングデータ・生成済みのタイムライン（`Example/Generated/`） |
+| `LICENSE.md` / `VN3License_ja.pdf` | 利用規約 |
+
+- `StageTimelineTools/Generated/` は配布対象外。Builder の既定出力先は `Assets/StageTimelineTools/Generated`。
+- サンプルシーンの出力先（`generatedBaseFolder`）は `Assets/MashiroSmallTheater/StageTimelineTools/Example/Generated`。
+- 名前空間: Manager は `MashiroTheater.StageTimeline`、Builder は `MashiroTheater.StageTimeline.Builder` / `MashiroTheater.StageTimeline.Builder.Editor`。
+
+## 依存
+
+| 依存 | 区分 | 用途 |
 |---|---|---|
-| **Scheduled Start Lead Time** | 0.5 秒 | 再生命令から実際に再生が始まるまでの余裕時間。ネットワーク遅延が大きい場合は増やします |
-| **Checkpoint Safety Margin** | 0.05 秒 | チェックポイントの手前で止まるマージン |
-| **Enable Checkpoint Hard Stop** | ON | ON のとき、シーン境界でタイムラインが自動停止します |
+| VRChat SDK - Worlds 3.8.1 以上 / UdonSharp | 必須 | Manager 全体。`StageCharacterRegistrationRow` は引数付きの `[NetworkCallable]`（`VRC.SDK3.UdonNetworkCalling`）を使用する |
+| TextMeshPro | 必須 | UI テキスト・ワープマーカー |
+| Unity Timeline | 必須 | `PlayableDirector` / 生成される TimelineAsset |
+| `MashiroTheater-Utils`（`com.mashirotheater.utils`） | 必須 | `MashiroLightGroup`（Builder の「LightGroup をスキャン」・照明プリセットのドラッグ＆ドロップ追加）、`MashiroButtonLockSystem`（`StageTimelineManager.prefab`）、共有フォント・アイコン・`BlackOut.mat` |
+| Cinemachine | 任意 | カメラトラック生成。型はリフレクションで解決し、未導入時はカメラトラックの生成をスキップする |
+| Post Processing Stack v2 | 任意 | Builder のポストプロセストラック生成。型はリフレクションで解決し、未導入時はポストプロセスの生成をスキップする |
+| [NoribenBeamlightShader](https://booth.pm/ja/items/1637978)（シェーダー `Noriben/noribenBeamLight`） | 任意 | 照明フェードの対象に含めるビームライト。未導入時は `Light` コンポーネントのみが対象 |
 
-**Auto Play Settings**
+- サンプルシーン（`Example/`）は Cinemachine（`CinemachineVirtualCamera` ×4・`CinemachineBrain`）と、Utils の `MashiroLightGroup` / `MashiroLightFixture` を使用する。
+- サンプルシーンのビームライト（名前に `BeamLight` を含む GameObject）は [NoribenBeamlightShader](https://booth.pm/ja/items/1637978) のメッシュ・マテリアルを参照する。本パッケージには同梱しない。
 
-| フィールド | デフォルト | 説明 |
+## 仕様
+
+### 同期
+
+- `StageTimelineManager` / `StageCharacterRegistrationRow` とも `BehaviourSyncMode.Manual`。
+- `StageTimelineManager` の同期変数はすべて Owner が書き込み、`RequestSerialization()` で送る。
+
+| 同期変数 | 型 | 初期値 | 内容 |
+|---|---|---|---|
+| `ownerName` | `string` | `""` | Owner の表示名 |
+| `currentTime` | `double` | `0` | Owner 側の再生位置（秒） |
+| `sceneNumber` | `int` | `1` | 現在の表示シーン番号（1 始まり） |
+| `isPlaying` | `bool` | `false` | 再生中か |
+| `nextCheckPointTime` | `double` | `0` | 次のチェックポイント時刻（秒） |
+| `syncState` | `int` | `0` | 状態更新カウンタ。値が変わったときだけ受信側が再生状態を適用する |
+| `scheduledBaseTimelineTime` | `double` | `0` | 再生開始時のタイムライン位置（秒） |
+| `scheduledStartServerTime` | `double` | `0` | 再生開始予定のサーバー時刻（`Networking.GetServerTimeInSeconds()` 基準） |
+| `playSessionId` | `int` | `0` | 再生セッション番号。再生開始・Reset・自動再生のたびに 1 増える |
+| `serializedCharacterAssignments` | `string` | `""` | 配役登録。`キャラindex:playerId:表示名` を `\|` 区切りで連結（`%` `\|` `:` は `%25` `%7C` `%3A` にエスケープ） |
+| `registryVersion` | `int` | `0` | 配役登録の更新カウンタ |
+| `isTimelineOperationLocked` | `bool` | `false` | タイムライン操作ロック |
+| `isRegistrationLocked` | `bool` | `false` | 配役登録ロック |
+
+### 再生
+
+- 再生開始時、Owner は `scheduledStartServerTime = サーバー時刻 + max(0.1, scheduledStartLeadTime)` を同期する。各クライアントはサーバー時刻がこの値に達した時点で、`scheduledBaseTimelineTime + 経過時間` からローカル再生を開始する。
+- 受信側は `syncState` が変わったとき、`PlayableDirector` を一時停止して同期位置へシークし `Evaluate()` する。
+- チェックポイント配列 `checkPointSeconds` は Builder が書き込む整数秒の配列で、先頭が `0`、以降が各シーングループの終了時刻。
+- 再生中に次のチェックポイントへ達すると停止する。`enableCheckpointHardStop` が ON のときの停止判定時刻は `チェックポイント - checkpointSafetyMargin`、OFF のときはチェックポイント時刻。
+- Owner は停止後、再生位置をチェックポイント時刻ちょうどに合わせて同期する。非 Owner は停止判定時刻で停止し、次の同期受信まで保持する。
+- `Start()` 時、Owner は再生を停止状態にする。`syncState == 0` の場合は 2 つのロックを OFF にする。
+- `autoPlayToFirstCheckpointOnInstanceStart` が ON のとき、`Start()` 時に次の条件をすべて満たせば時刻 0 から再生を開始し、最初のチェックポイントで停止する: ローカルが Owner / `playSessionId == 0` / プレイヤー数 1 / `checkPointSeconds` の要素数が 2 以上。
+
+### 操作
+
+| 操作 | 実行条件 | 動作 |
 |---|---|---|
-| **Auto Play To First Checkpoint On Instance Start** | OFF | ON のとき、インスタンス最初の Master が Join した時点で第1シーン末尾（最初のチェックポイント）まで自動再生します。使用する場合は `PlayableDirector` の `Play On Awake` をオフにしてください |
+| Play（`PlayTimeline`） | Owner | 現在位置から新しい再生セッションを開始する |
+| Pause（`PauseTimeline`） | Owner | 一時停止する |
+| Next（`Next`） | Owner かつ操作ロック OFF | 一時停止し、次のシーンの開始チェックポイントへ移動する |
+| Back（`Back`） | Owner かつ操作ロック OFF | 一時停止し、現在位置より前の直近チェックポイントへ移動する（チェックポイント上にいる場合は 1 つ前） |
+| +1s / -1s（`Plus1s` / `Minus1s`） | Owner かつ操作ロック OFF | 一時停止し、1.0 秒進める / 戻す（-1s は 0 未満にしない） |
+| Reset（`ResetTimeline`） | Owner かつ操作ロック OFF | 時刻 0・シーン 1 に戻し、新しい再生セッションで再生を開始する |
+| Set Owner（`OnClickSetOwner`） | なし | ローカルプレイヤーが所有権を取得する |
+| 操作ロック切替（`OnClickToggleTimelineOperationLock`） | なし（非 Owner は所有権を取得してから実行） | `isTimelineOperationLocked` を反転する |
+| 登録ロック切替（`OnClickToggleRegistrationLock`） | なし（非 Owner は所有権を取得してから実行） | `isRegistrationLocked` を反転する |
 
----
+### ボタンの活性状態
 
-## 8. VRChat 上での使い方
+Owner 状態・`isPlaying`・`isTimelineOperationLocked` のいずれかが変わったときに更新する。
 
-### オーナー権限
-
-タイムラインの操作は **オーナー** 権限を持つプレイヤーのみが行えます。初期状態ではシーンにアップロードした本人が対象になりますが、公演中にオーナーを移譲することもできます。
-
-操作パネルには以下のボタンが並んでいます。
-
-### 再生コントロール
-
-| ボタン | 説明 | 押せる人 |
+| 対象 | Owner | 非 Owner |
 |---|---|---|
-| **Play** | タイムラインを再生します | オーナーのみ |
-| **Pause** | タイムラインを一時停止します | オーナーのみ |
-| **Next** | 次のシーン（チェックポイント）へ進みます | オーナーのみ（Timeline Lock 中は不可） |
-| **Back** | 前のシーンへ戻ります | オーナーのみ（Timeline Lock 中は不可） |
-| **+1s / -1s** | 再生位置を 1 秒ずつ調整します | オーナーのみ（Timeline Lock 中は不可） |
-| **Reset** | 最初から再生します | オーナーのみ（Timeline Lock 中は不可） |
-| **Set Owner** | 操作権限を自分に移します | 全員（常時） |
+| `playButton` | 再生中は非活性、停止中は活性 | 非活性 |
+| `pauseButton` | 活性 | 非活性 |
+| `setOwnerButton` | 非活性 | 操作ロック OFF のとき活性、ON のとき非活性 |
+| `ownerOnlyButtons` の各ボタン | 操作ロック OFF のとき活性、ON のとき非活性（`timelineLockToggleButton` は常に活性） | 非活性 |
 
-再生中は Play ボタンが自動で非活性になり、Pause やチェックポイント停止で再び押せるようになります。
+- `ownerOnlyButtons` に含まれる `playButton` / `pauseButton` / `setOwnerButton` は上表の個別ルールに従う。
+- `timelineLockToggleButton` / `registrationLockToggleButton` は、ロック ON の間 `targetGraphic` の色を `#E85900`、子の TextMeshProUGUI の色を `#FFFFFF` にする。ロック OFF で初期色に戻す。
 
-### ロック機能
+### 表示
 
-| ボタン | 説明 |
+| UI フィールド | 表示内容 |
 |---|---|
-| **Timeline Lock** | ON のとき、**オーナーを含む全員**が Next / Back / ±1s / Reset を操作できなくなります（誤操作防止）。ボタンがオレンジ色になります。Play / Pause / Set Owner は影響を受けません |
-| **Registration Lock** | ON のとき、キャラクター登録の変更ができなくなります |
+| `currentTimeText` | ローカルの再生位置（`0.0s` 形式） |
+| `infoText` | `Synced Time` / `Next Checkpoint` / `Owner` の 3 行 |
+| `sceneNameText` | `#番号 シーン名`。シーン名が空の場合は `#番号 シーン 番号` |
+| `nextCueText` | 次のシーングループの先頭シーンの `cue`（キッカケ） |
+| `progressBar` | 再生位置 / 全長。`Image.Type.Filled`・水平・左起点に設定し、色は `progressBarColor` |
+| `checkpointContainer` | `Start()` 時に `checkPointSeconds` の各時刻へ `checkpointLinePrefab` を生成する（幅 2） |
+| `registrationWarningText` | 未登録のキャラクターがあるとき `未登録のキャラクターがあります。` |
 
-公演本番中はどちらも ON にして誤操作を防ぐことを推奨します。
+- 番号はシーングループ単位（Builder で「次のシーンを統合」により連結されたシーンは 1 番号）。
 
-### キャラクターへの登録（プレイヤー視点）
+### 配役登録
 
-1. 操作パネルのキャラクター登録エリアを確認します
-2. 自分が担当するキャラクター名の横にある **登録ボタン** を押します
-3. 自分の表示名がそのキャラクターに登録されます
-4. 再度押すと登録解除できます
-5. 登録情報はオーナーを経由して全プレイヤーに同期されます
+- `registrationRows` の先頭からキャラクター数分の行を表示し、残りの行は非アクティブにする。キャラクター名が空の場合は `Character 番号` を表示する。
+- 行の `Submit()` は `SendCustomNetworkEvent(NetworkEventTarget.All, BroadcastRequest, ...)` を送る。各クライアントの行が `StageTimelineManager` の `ReceiveRegistrationRequest` / `ReceiveUnregisterRequest` を呼び、Owner のみが処理する。
+- 登録要求の処理（Owner）:
+  - `isRegistrationLocked` が ON の場合は無視する。
+  - 要求者がすでにそのキャラクターに登録済みの場合は登録を解除する。
+  - 要求者が他のキャラクターに登録済みの場合はその登録を解除してから登録する（1 プレイヤー 1 キャラクター）。
+  - 表示名が空の場合は `Player playerId` を記録する。
+- 解除要求（`unregisterMode` が ON の行）は、登録者本人の要求のみ処理する。
+- 登録ロック ON の間、各行の `registrationButton` は非活性。
+- `OnPlayerJoined`（Owner のみ）: 登録中の playerId が無効になっており、記録された表示名が参加者の表示名と一致する場合、その登録を参加者の playerId に付け替える。
 
-> **1人1キャラクター**: 1 人のプレイヤーが同時に登録できるキャラクターは 1 つだけです。すでに登録済みの人が別のキャラクターに登録すると、前の登録は自動的に解除されます。
+### ワープ
 
-> **注意**: 登録ロック中は変更できません。公演前に登録を済ませておくことを推奨します。
+- Builder が書き込むワープ配列（キャラクター index・発火時刻・座標・Y 回転）を時刻順に処理する。
+- 再生中のみ、前フレームから現フレームまでの区間に入った発火時刻のワープを実行する。同じ再生セッション内で各ワープは 1 回のみ実行する。再生セッション開始時は区間を現在位置から取り直す。
+- 対象キャラクターに登録されたプレイヤー本人のクライアントでのみ実行する。未登録のキャラクターのワープは何もしない。
+- 実行内容: `SetVelocity(Vector3.zero)` → `Immobilize(true)` → `TeleportTo(座標, Y 回転, SpawnOrientation.AlignPlayerWithSpawnPoint)`。`Immobilize` は次フレーム以降の `Update` で解除する。
 
-### ワープについて
+### タイムライン連動イベント
 
-タイムラインが進行し、設定したワープのタイミングになると、該当キャラクターに登録しているプレイヤーが自動でテレポートします。プレイヤー側は何も操作する必要はありません。
+Builder が書き込む配列に従い、各クライアントがローカルで実行する。
 
----
+| 種別 | 実行 | 再生停止中 | 巻き戻し時 |
+|---|---|---|---|
+| Animator パラメータ | 発火時刻を過ぎたイベントの値を `Animator.SetInteger` で適用する。対象ごとに最後に適用した値と同じ場合は再適用しない | 処理する | キャッシュを破棄し、現在時刻までの値を再適用する |
+| Animator トリガー | 区間に入った発火時刻で `Animator.SetTrigger` を 1 回呼ぶ | 処理しない | 現在時刻より後のイベントを未発火に戻す |
+| Udon イベント | 区間に入った発火時刻で `SendCustomEvent` を 1 回呼ぶ。OwnerOnly 指定のイベントは、対象 GameObject の Owner のクライアントのみが呼ぶ | 処理しない | 現在時刻より後のイベントを未発火に戻す |
 
-## 9. トラブルシューティング
+- Animator トリガー / Udon イベントは、再生セッション開始時に区間を現在位置から取り直す。区間より前の未発火イベントは発火せず消化する。
 
-### 「タイムライン生成」ボタンが押せない / 押してもエラーになる
+## Inspector
 
-- **タイトル** が未入力ではないか確認してください
-- **PlayableDirector** が割り当てられているか確認してください
-- シーンが 1 つ以上登録されているか確認してください
-- **GeneratedBaseFolder** が `Assets` 配下の有効なパスになっているか確認してください（空欄のときは既定の出力先が使われます）
-- 「閲覧モード」が ON になっていないか確認してください
+### StageTimelineManager
 
-### 照明フェードが生成されない・効かない
+| フィールド | 型 | 既定値 | 必須 | 内容 |
+|---|---|---|---|---|
+| `timeline` | `PlayableDirector` | なし | 必須 | 制御対象。未設定時は `Start()` でエラーを出して動作しない。Builder の生成時に適用先 `PlayableDirector` が書き込まれる（未設定の場合は Manager 自身・子孫の `PlayableDirector`、無ければ子に作成した `Timeline` の `PlayableDirector`。解決順は [Builder/README.md](Builder/README.md#タイムライン生成)） |
+| `currentTimeText` | `TextMeshProUGUI` | なし | 任意 | 再生位置表示 |
+| `infoText` | `TextMeshProUGUI` | なし | 任意 | 同期情報表示 |
+| `sceneNameText` | `TextMeshProUGUI` | なし | 任意 | シーン名表示 |
+| `nextCueText` | `TextMeshProUGUI` | なし | 任意 | 次のキッカケ表示 |
+| `progressBar` | `Image` | なし | 任意 | プログレスバー |
+| `registrationWarningText` | `TextMeshProUGUI` | なし | 任意 | 未登録警告表示 |
+| `playButton` | `Button` | なし | 任意 | 再生ボタン |
+| `pauseButton` | `Button` | なし | 任意 | 一時停止ボタン |
+| `setOwnerButton` | `Button` | なし | 任意 | 所有権取得ボタン |
+| `timelineLockToggleButton` | `Button` | なし | 任意 | 操作ロック切替ボタン |
+| `registrationLockToggleButton` | `Button` | なし | 任意 | 登録ロック切替ボタン |
+| `ownerOnlyButtons` | `Button[]` | 空 | 任意 | Owner のみ操作可能にするボタン |
+| `progressBarColor` | `Color` | `#3B82F6` | 任意 | プログレスバーの色 |
+| `registrationRows` | `StageCharacterRegistrationRow[]` | 空 | 任意 | 配役登録行。表示できるキャラクター数の上限は要素数（プレハブは 10） |
+| `checkpointContainer` | `RectTransform` | なし | 任意 | チェックポイント線の親 |
+| `checkpointLinePrefab` | `GameObject` | なし | 任意 | チェックポイント線のプレハブ |
+| `scheduledStartLeadTime` | `float` | `0.5` | 任意 | 再生開始を予約する先行時間（秒）。実効値は 0.1 以上 |
+| `checkpointSafetyMargin` | `float` | `0.05` | 任意 | チェックポイント手前で停止するマージン（秒） |
+| `enableCheckpointHardStop` | `bool` | `true` | 任意 | マージン手前で停止するか |
+| `autoPlayToFirstCheckpointOnInstanceStart` | `bool` | `true` | 任意 | インスタンス最初の参加者の `Start()` で最初のチェックポイントまで自動再生する |
 
-- `Light Root` の子に `Light` コンポーネントまたは NoribenBeamLight シェーダーを使用した MeshRenderer があるか確認してください
-- NoribenBeamLight を使用している場合、シェーダー名が `Noriben/noribenBeamLight` になっているか確認してください
+Inspector に表示しないシリアライズフィールド（Builder の生成時に書き込まれる）:
 
-### ワープが発動しない
+| フィールド | 型 | 内容 |
+|---|---|---|
+| `checkPointSeconds` | `int[]` | チェックポイント（秒） |
+| `sceneDisplayNames` / `sceneNextCues` | `string[]` | シーングループごとの表示名・次のキッカケ |
+| `sceneRangeStarts` / `sceneRangeEnds` | `int[]` | シーングループに含まれる最初・最後のシーン番号（1 始まり） |
+| `characterDisplayNames` | `string[]` | キャラクター表示名 |
+| `warpCharacterIndices` / `warpTriggerTimes` / `warpDestinations` / `warpYawDegrees` | `int[]` / `float[]` / `Vector3[]` / `float[]` | ワープ |
+| `animatorParamAnimators` / `animatorParamNames` | `Animator[]` / `string[]` | Animator パラメータの対象（Animator とパラメータ名の組） |
+| `animatorParamEventTargets` / `animatorParamEventTimes` / `animatorParamEventValues` | `int[]` / `float[]` / `int[]` | Animator パラメータのイベント（時刻昇順） |
+| `animatorTriggerAnimators` | `Animator[]` | Animator トリガーの対象 |
+| `animatorTriggerEventTargets` / `animatorTriggerEventTimes` / `animatorTriggerEventNames` | `int[]` / `float[]` / `string[]` | Animator トリガーのイベント（時刻昇順） |
+| `udonEventTargets` | `UdonSharpBehaviour[]` | Udon イベントの対象 |
+| `udonEventEventTargets` / `udonEventEventTimes` / `udonEventEventNames` / `udonEventEventOwnerOnly` | `int[]` / `float[]` / `string[]` / `bool[]` | Udon イベント（時刻昇順） |
+| `characterRegistryText` | `TextMeshProUGUI` | 配役一覧テキスト（任意） |
 
-- キャラクターにプレイヤーが登録されているか確認してください（未登録の場合はワープしません）
-- **ワープ先Transform** が正しく割り当てられているか確認してください
-- タイムライン生成を再実行してワープデータが更新されているか確認してください
+### StageCharacterRegistrationRow
 
-### 音が鳴らない
+| フィールド | 型 | 既定値 | 必須 | 内容 |
+|---|---|---|---|---|
+| `characterNameText` | `TextMeshProUGUI` | なし | 任意 | キャラクター名表示 |
+| `registeredPlayerNameText` | `TextMeshProUGUI` | なし | 任意 | 登録者名表示（未登録時 `未登録`） |
+| `registrationButton` | `Button` | なし | 任意 | 登録ロック中に非活性にするボタン |
+| `unregisterMode` | `bool` | `false` | 任意 | ON の場合、`Submit()` は解除要求を送る |
 
-- `AudioSource` が有効な状態であるか確認してください
-- 音量が 0 になっていないか確認してください
-- BGM の `Play On Awake` はタイムライン生成時に自動で ON へ揃えます。鳴らない場合は生成を再実行し、対象 AudioSource にバインドが正しく設定されているか確認してください
+## API リファレンス
 
-### Animator パラメータが反映されない / Console に Warning が出る
+### StageTimelineManager
 
-- 4-2 の **「高度な機能を表示」** が ON になっているか確認してください（OFF のときシーン側に追加ボタンが出ません）
-- シーン編集 UI のエントリに「**[参照切れ — 再選択してください]**」や警告 HelpBox が出ていないか確認してください。参照切れの状態で生成するとそのエントリだけスキップされます
-- プリセットの「値の選択肢」に該当する Int 値が登録されているか確認してください（プリセットの Int 値を変更した場合、シーン側は自動追従しますが、選択肢ごと削除した場合は再選択が必要です）
-- AnimatorController 側に同名の Int パラメータが定義されているか確認してください（パラメータ名が一致しないと生成時に Warning が出てスキップされます）
+#### UI へ手配線するもの（`Button.OnClick` → `UdonBehaviour.SendCustomEvent`）
 
-### 非オーナーで再生位置がずれる
-
-- `Scheduled Start Lead Time` を少し大きくしてみてください（デフォルト 0.5 秒）
-- VRChat のネットワーク状態が不安定な場合、ずれが大きくなることがあります
-
-### カメラが切り替わらない
-
-- **設定** タブの **CinemachineBrain** に `CinemachineBrain` コンポーネントを持つ GameObject が割り当てられているか確認してください。未割り当てだと Console に Warning を出してカメラトラックの生成が丸ごとスキップされます
-- カメラプリセットの `Virtual Camera` に `CinemachineVirtualCamera` コンポーネントを持つ GameObject が設定されているか確認してください
-- Cinemachine がプロジェクトに導入されていない場合、Console に Warning を出してカメラトラックの生成はスキップされます
-
-### 公演前チェックリスト
-
-- タイムライン生成を最後に実行してから設定を変更していないか
-- PlayableDirector に生成された `.playable` ファイルが割り当てられているか
-- キャラクター登録が完了しているか
-- Timeline Lock / Registration Lock を必要に応じて ON にしたか
-- オーナーが正しいプレイヤーになっているか
-
----
-
-## 10. ランタイム操作パネルの配線
-
-本節では、操作パネルのボタンを `StageTimelineManager` に配線する手順をまとめます。
-
-> **配布プレハブを使う場合、本節の作業は不要です。** `StageTimelineManager.prefab` の操作パネルはボタンが配線済みです。本節は、パネルを自作する場合や既存パネルを作り替える場合のための情報です。
-
-### 前提
-
-- 進行操作（Next / Back / Play / Pause / ±1s / Reset）はオーナーのみ実行できます。
-- 非オーナーの操作ボタンは `ownerOnlyButtons` で非活性になります。
-- 再生中は `playButton` が自動で非活性になります。
-
-### Inspector で設定するボタン
-
-#### `playButton`（単体）
-
-- 用途: 再生ボタン。再生中は自動で `interactable = false` になります
-- 「再生中は押せない」制御の専用フィールドです
-
-#### `ownerOnlyButtons`（配列）
-
-- 用途: オーナー以外に押させたくない操作ボタンを登録します
-- 例: Next / Back / Pause / Play / +1s / -1s / Reset
-- 注意:
-  - **Set Owner ボタンはこの配列に入れないでください**（誰でも押せる必要があります）
-  - `playButton` を配列に入れても重複制御はスキップされます（`playButton` 側の専用ロジックが優先されます）
-
-### 各ボタンの OnClick 設定
-
-以下をそれぞれ UI Button の OnClick に割り当てます（対象コンポーネント: `StageTimelineManager`）。
-
-| ボタン | 割り当てるメソッド |
+| シグネチャ | 用途 |
 |---|---|
-| Next | `OnClickNext()` |
-| Back | `OnClickBack()` |
-| Pause | `OnClickPause()` |
-| Play | `OnClickPlay()` |
-| +1s | `OnClickPlus1s()` |
-| -1s | `OnClickMinus1s()` |
-| Reset | `OnClickReset()` |
-| Set Owner | `OnClickSetOwner()`（ローカルプレイヤーに所有権を移し、ボタンの活性状態を再評価します） |
-| Timeline Lock | `OnClickToggleTimelineOperationLock()` |
-| Registration Lock | `OnClickToggleRegistrationLock()` |
+| `void OnClickPlay()` | 再生（Owner のみ） |
+| `void OnClickPause()` | 一時停止（Owner のみ） |
+| `void OnClickNext()` | 次のシーンへ（Owner のみ） |
+| `void OnClickBack()` | 前のチェックポイントへ（Owner のみ） |
+| `void OnClickPlus1s()` | 1 秒進める（Owner のみ） |
+| `void OnClickMinus1s()` | 1 秒戻す（Owner のみ） |
+| `void OnClickReset()` | 先頭から再生（Owner のみ） |
+| `void OnClickSetOwner()` | 所有権を取得する |
+| `void OnClickToggleTimelineOperationLock()` | 操作ロックを切り替える |
+| `void OnClickToggleRegistrationLock()` | 登録ロックを切り替える |
 
-### 配線後の確認項目
+- `StageTimelineManager.prefab` では Play / Pause / Next / Back / +1s / -1s / Reset / Set Owner の各ボタンが配線済み。
 
-1. オーナー以外で操作系ボタンが押せないこと
-2. オーナーで操作系ボタンが押せること
-3. 再生開始後、Play ボタンが非活性になること
-4. Pause / チェックポイント停止後、Play ボタンが再活性になること
-5. Set Owner ボタンは常に押せること
+#### 他コンポーネントから呼ぶもの（配線不要）
 
----
+| シグネチャ | 用途 |
+|---|---|
+| `void PlayTimeline()` / `void PauseTimeline()` | 再生 / 一時停止。Owner のクライアントでのみ動作する |
+| `void Next()` / `void Back()` / `void Plus1s()` / `void Minus1s()` / `void ResetTimeline()` | 進行操作。Owner かつ操作ロック OFF のクライアントでのみ動作する |
+| `int GetCurrentScene()` | `sceneNumber` を返す |
+| `float GetCurrentTime()` | ローカルの再生位置（秒）を返す |
+| `float GetSyncedTime()` | `currentTime` を返す |
+| `float GetProgress()` | 再生位置 / 全長（0–1）を返す |
+| `float GetNextCheckpointTime()` | `nextCheckPointTime` を返す |
+| `string GetOwnerName()` | `ownerName` を返す |
+| `string GetSceneDisplayName(int sceneIndex)` | `#番号 シーン名` を返す（`sceneIndex` は 1 始まり。0 以下はその数値の文字列） |
+| `string GetSceneNextCue(int sceneIndex)` | 指定シーングループ表示中の次のキッカケを返す（範囲外は空文字） |
+| `int GetCharacterCount()` | キャラクター数を返す |
+| `string GetCharacterDisplayNameAt(int index)` | キャラクター表示名を返す（範囲外は空文字） |
+| `string[] GetCharacterDisplayNames()` | キャラクター表示名配列（内部配列の参照）を返す |
+| `int GetAssignedPlayerId(int characterIndex)` | 登録プレイヤーの playerId を返す（未登録・範囲外は -1） |
 
-## 11. API リファレンス
+#### 内部専用（配線不要）
 
-### StageTimelineManager（Runtime）
+| シグネチャ | 用途 |
+|---|---|
+| `void ReceiveRegistrationRequest(int characterIndex, int playerId, string displayName)` | 配役登録要求の処理。`StageCharacterRegistrationRow.BroadcastRequest` が呼ぶ |
+| `void ReceiveUnregisterRequest(int characterIndex, int playerId)` | 配役解除要求の処理。同上 |
+| `override void OnDeserialization()` | VRChat コールバック。同期状態を適用する |
+| `override void OnPlayerJoined(VRCPlayerApi player)` | VRChat コールバック。再参加者の配役を付け替える |
 
-進行操作はオーナーのみ有効です（`OnClickSetOwner` を除く）。`StageTimelineManager.prefab` を使う場合、操作パネルのボタンは配線済みです。
+### StageCharacterRegistrationRow
 
-| メソッド | 用途 | 呼び出し種別 |
-|---|---|---|
-| `OnClickNext` / `OnClickBack` / `OnClickPlay` / `OnClickPause` / `OnClickPlus1s` / `OnClickMinus1s` / `OnClickReset` | 進行操作（次へ / 戻る / 再生 / 一時停止 / ±1秒 / リセット） | `Button.OnClick` から配線（プレハブでは配線済み） |
-| `OnClickSetOwner` | 操作オーナーの取得 | 同上 |
-| `OnClickToggleTimelineOperationLock` / `OnClickToggleRegistrationLock` | 操作ロック / 登録ロックの切替 | 同上 |
-| `Next()` / `Back()` / `PlayTimeline()` / `PauseTimeline()` / `Plus1s()` / `Minus1s()` / `ResetTimeline()` | 進行操作の実体 | 他の Udon から `SendCustomEvent` で呼ぶ外部連携用 |
-| `GetCurrentScene()` / `GetCurrentTime()` / `GetSyncedTime()` / `GetProgress()` / `GetNextCheckpointTime()` / `GetOwnerName()` | 進行状態の取得 | 他コンポーネントから呼ぶ内部連携用 |
-| `GetSceneDisplayName(int)` / `GetSceneNextCue(int)` | シーン情報の取得 | 同上 |
-| `GetCharacterCount()` / `GetCharacterDisplayNameAt(int)` / `GetCharacterDisplayNames()` / `GetAssignedPlayerId(int)` | 配役情報の取得 | 同上 |
-| `ReceiveRegistrationRequest(...)` / `ReceiveUnregisterRequest(...)` / `OnDeserialization` / `OnPlayerJoined` | ネットワーク処理 | 内部専用（配線不要） |
+#### UI へ手配線するもの（`Button.OnClick` → `UdonBehaviour.SendCustomEvent`）
 
-### StageCharacterRegistrationRow（配役登録行）
+| シグネチャ | 用途 |
+|---|---|
+| `void Submit()` | 登録（`unregisterMode` が ON の場合は解除）要求を送る。`CharacterRegistrationRow.prefab` では配線済み |
 
-`CharacterRegistrationRow.prefab` 内で配線済みです。
+#### 内部専用（配線不要）
 
-| メソッド | 用途 | 呼び出し種別 |
-|---|---|---|
-| `Submit()` | 配役の登録 / 解除の申請 | 行プレハブ内で配線済み |
-| `Configure(...)` / `SetRegisteredPlayerName(...)` / `SetInteractable(...)` / `SendBroadcastRequest(...)` / `BroadcastRequest(...)` | 初期化・表示更新・ネットワーク処理 | 内部専用（配線不要） |
+| シグネチャ | 用途 |
+|---|---|
+| `void Configure(StageTimelineManager manager, int characterIndex, string characterName)` | 行の初期化。`StageTimelineManager` が呼ぶ |
+| `void SetRegisteredPlayerName(string registeredPlayerName)` | 登録者名表示の更新。`StageTimelineManager` が呼ぶ |
+| `void SetInteractable(bool interactable)` | `registrationButton` の活性切替。`StageTimelineManager` が呼ぶ |
+| `void SendBroadcastRequest(int requestedCharacterIndex, int requesterPlayerId, string requesterDisplayName, bool requestUnregisterMode)` | `BroadcastRequest` を全員へ送る。`Submit()` が呼ぶ |
+| `[NetworkCallable] void BroadcastRequest(int requestedCharacterIndex, int requesterPlayerId, string requesterDisplayName, bool requestUnregisterMode)` | ネットワークイベントハンドラ。`StageTimelineManager` へ要求を渡す |
 
-### Builder（Editor 拡張）
+### Builder
 
-Builder は Unity Editor 上のツールのため、ランタイムの配線対象はありません。Animator・Udon 連携の使い方は [`Builder/README.md`](Builder/README.md) を参照してください。
+UI へ手配線するものはない。エディタ API は [Builder/README.md](Builder/README.md) に記載する。
+
+## ライセンス
+
+MIT License ではない。[LICENSE.md](LICENSE.md)（ましろ小劇場 ツール・ギミック汎用利用規約）に基づいて提供する。規約の正本は [VN3License_ja.pdf](VN3License_ja.pdf)（VN3 ライセンス様式）。
 
 ---
 

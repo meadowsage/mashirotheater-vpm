@@ -32,8 +32,8 @@ Mashiro Small Theater が作成したアセット（プレハブ・マテリア�
 成果物（ワールド等）への組み込み・改変・商用利用は可能ですが、素材としての
 再配布・再販売はできません。
 
-- `LightingControlSystem/`（Mashiro Theater Lighting Control System）
-- `StageTimelineManager/`（Mashiro Theater Stage Timeline Manager）
+- `LightingConsole/`（Mashiro Theater Lighting Console）
+- `StageTimelineTools/`（Mashiro Theater Stage Timeline Tools）
 
 下記「第三者アセット」に挙げたものは、それぞれの提供元のライセンスに従います。
 MIT License の対象外です。

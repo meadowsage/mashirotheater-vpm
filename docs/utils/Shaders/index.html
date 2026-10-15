@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>_Common / Shaders — Mashiro Small Theater</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fg: #1f1f1f; --bg: #ffffff; --muted: #666666; --line: rgba(127,127,127,.3);
+    --code-bg: rgba(127,127,127,.14); --accent: #E85900;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e6e6; --bg: #161616; --muted: #999999; }
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.75; max-width: 52rem; margin: 0 auto; padding: 1.2rem 16px 4rem;
+    color: var(--fg); background: var(--bg); overflow-wrap: anywhere;
+  }
+  a { color: var(--accent); }
+  nav { font-size: .9rem; color: var(--muted); margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; line-height: 1.4; }
+  h2 { margin-top: 2.4rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+  h3 { margin-top: 1.8rem; }
+  code { background: var(--code-bg); padding: .1rem .35rem; border-radius: .25rem; font-size: .9em; }
+  pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: .4rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; display: block; overflow-x: auto; margin: 1rem 0; }
+  th, td { text-align: left; padding: .45rem .7rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--code-bg); }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid var(--line); color: var(--muted); }
+  img { max-width: 100%; }
+  footer { margin-top: 3rem; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<nav><a href="../../">リファレンス</a> / <a href="../">Mashiro Theater Utils</a></nav>
+<main>
+<h1 id="_common--shaders">_Common / Shaders</h1>
+<p>各ツールが共有するシェーダーとマテリアル。<code>MashiroTheater-Utils</code> に含まれる。</p>
+<h2 id="構成">構成</h2>
+<p><code>MashiroTheater-Utils</code> には、配布対象パッケージのアセットから GUID で参照されるファイルのみを同梱する（<code>.packaging/packages.json</code> の <code>pruneToReferenced</code>）。参照されていないファイルは配布物に含まれない。</p>
+<table>
+<thead>
+<tr>
+<th>ファイル</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CubeInteriorBand.shader</code></td>
+<td><code>MashiroTheater/CubeInteriorBand</code></td>
+</tr>
+<tr>
+<td><code>TwoSidedOverlay.shader</code></td>
+<td><code>MashiroTheater/TwoSidedOverlay</code></td>
+</tr>
+<tr>
+<td><code>TwoSidedOverlayTexture.shader</code></td>
+<td><code>MashiroTheater/TwoSidedOverlayTexture</code></td>
+</tr>
+<tr>
+<td><code>../Materials/BlackOut.mat</code></td>
+<td><code>MashiroTheater/TwoSidedOverlay</code>。<code>_Color</code> = <code>(0, 0, 0, 1)</code>、<code>_Alpha</code> = <code>0</code></td>
+</tr>
+<tr>
+<td><code>../Materials/暗転中ガイド.mat</code></td>
+<td><code>MashiroTheater/CubeInteriorBand</code>。<code>_Color</code> = <code>(1, 1, 0, 0.031)</code>、<code>_Color2</code> = <code>(0.953, 0.953, 0.953, 0)</code>、<code>_StripeWidth</code> = <code>0.1</code>、<code>_StripeAngle</code> = <code>45</code>、<code>_Height</code> = <code>1</code>、<code>_Thickness</code> = <code>1</code>、<code>_ShowOutside</code> = <code>0</code></td>
+</tr>
+<tr>
+<td><code>README.md</code></td>
+<td>本ドキュメント</td>
+</tr>
+</tbody>
+</table>
+<h2 id="仕様">仕様</h2>
+<ul>
+<li>すべて Built-in Render Pipeline 用（<code>CGPROGRAM</code> / <code>UnityCG.cginc</code>）。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>シェーダー</th>
+<th>Queue</th>
+<th>Cull</th>
+<th>ZWrite</th>
+<th>ZTest</th>
+<th>Blend</th>
+<th>GPU インスタンシング</th>
+<th>Fallback</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MashiroTheater/CubeInteriorBand</code></td>
+<td><code>Transparent</code></td>
+<td>パス 1: <code>Front</code> / パス 2: <code>Back</code></td>
+<td><code>Off</code></td>
+<td>既定</td>
+<td><code>SrcAlpha OneMinusSrcAlpha</code></td>
+<td>対応</td>
+<td><code>Off</code></td>
+</tr>
+<tr>
+<td><code>MashiroTheater/TwoSidedOverlay</code></td>
+<td><code>Transparent</code></td>
+<td><code>Off</code></td>
+<td><code>Off</code></td>
+<td><code>Always</code></td>
+<td><code>SrcAlpha OneMinusSrcAlpha</code></td>
+<td>–</td>
+<td>指定なし</td>
+</tr>
+<tr>
+<td><code>MashiroTheater/TwoSidedOverlayTexture</code></td>
+<td><code>Transparent</code></td>
+<td><code>Off</code></td>
+<td><code>Off</code></td>
+<td><code>Always</code></td>
+<td><code>SrcAlpha OneMinusSrcAlpha</code></td>
+<td>–</td>
+<td>指定なし</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mashirotheatercubeinteriorband">MashiroTheater/CubeInteriorBand</h3>
+<ul>
+<li>Unity 標準 Cube（ローカル座標 -0.5〜+0.5）を前提とする。</li>
+<li>4 側面（ローカル <code>|y| ≤ max(|x|, |z|)</code> の領域）にのみ水平な帯を描く。天面・底面には描かない。</li>
+<li>2 パスで描く。パス 1（<code>Cull Front</code>）は Cube の内側の面、パス 2（<code>Cull Back</code>）は外側の面を描く。</li>
+<li>パス 2 は <code>_ShowOutside</code> が 0.5 未満のとき頂点をクリップ範囲外へ移し、描画しない。既定では Cube の内側からのみ帯が見える。</li>
+<li>帯の中心高さは Cube 底面からのワールド距離 <code>_Height</code>、帯の太さは <code>_Thickness</code>（いずれも各軸のワールドスケールから換算したメートル単位）。</li>
+<li>帯の長さ方向に <code>_StripeWidth</code> ごとに <code>_Color</code> と <code>_Color2</code> を交互に切り替える。<code>_StripeWidth</code> は 0.0001 未満を 0.0001 として扱う。</li>
+<li>ストライプの境界は <code>_StripeAngle</code> 度傾く。0 で帯の長さ方向に垂直。</li>
+<li>ストライプの位相は面ごとに計算するため、X 方向と Z 方向のワールドスケールが異なる Cube ではコーナーで位相が一致しない。</li>
+<li>出力アルファは選ばれた色のアルファ値。</li>
+<li>テクスチャ・GrabPass・深度テクスチャを使わない。</li>
+</ul>
+<h3 id="mashirotheatertwosidedoverlay">MashiroTheater/TwoSidedOverlay</h3>
+<ul>
+<li>単色を出力する。RGB は <code>_Color</code>、アルファは <code>_Alpha</code>（<code>_Color</code> のアルファは使わない）。</li>
+<li><code>ZTest Always</code> のため、他のジオメトリに隠れない。</li>
+</ul>
+<h3 id="mashirotheatertwosidedoverlaytexture">MashiroTheater/TwoSidedOverlayTexture</h3>
+<ul>
+<li>出力 = <code>_MainTex × _Color</code>。アルファにさらに <code>_Alpha</code> を乗算する。</li>
+<li><code>_MainTex</code> のタイリング・オフセットを適用する。</li>
+<li><code>ZTest Always</code> のため、他のジオメトリに隠れない。</li>
+</ul>
+<h2 id="inspector">Inspector</h2>
+<h3 id="mashirotheatercubeinteriorband-1">MashiroTheater/CubeInteriorBand</h3>
+<table>
+<thead>
+<tr>
+<th>プロパティ</th>
+<th>表示名</th>
+<th>型</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>_Color</code></td>
+<td>Color 1 (RGB) / Alpha (A)</td>
+<td>Color</td>
+<td><code>(0.30, 0.69, 0.31, 1)</code></td>
+<td>ストライプの色 1</td>
+</tr>
+<tr>
+<td><code>_Color2</code></td>
+<td>Color 2 (RGB) / Alpha (A)</td>
+<td>Color</td>
+<td><code>(1, 1, 1, 1)</code></td>
+<td>ストライプの色 2</td>
+</tr>
+<tr>
+<td><code>_StripeWidth</code></td>
+<td>Stripe Width (m)</td>
+<td>Float</td>
+<td><code>0.1</code></td>
+<td>ストライプ 1 本の幅（m）</td>
+</tr>
+<tr>
+<td><code>_StripeAngle</code></td>
+<td>Stripe Angle (deg)</td>
+<td>Range(-89, 89)</td>
+<td><code>0</code></td>
+<td>ストライプ境界の傾き（度）</td>
+</tr>
+<tr>
+<td><code>_Height</code></td>
+<td>Height From Floor (m)</td>
+<td>Float</td>
+<td><code>1.0</code></td>
+<td>Cube 底面から帯の中心までの高さ（m）</td>
+</tr>
+<tr>
+<td><code>_Thickness</code></td>
+<td>Thickness (m)</td>
+<td>Float</td>
+<td><code>0.02</code></td>
+<td>帯の太さ（m）</td>
+</tr>
+<tr>
+<td><code>_ShowOutside</code></td>
+<td>Visible From Outside</td>
+<td>ToggleUI</td>
+<td><code>0</code></td>
+<td>ON で Cube の外側の面にも帯を描く</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mashirotheatertwosidedoverlay-1">MashiroTheater/TwoSidedOverlay</h3>
+<table>
+<thead>
+<tr>
+<th>プロパティ</th>
+<th>表示名</th>
+<th>型</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>_Color</code></td>
+<td>Color</td>
+<td>Color</td>
+<td><code>(0, 0, 0, 1)</code></td>
+<td>出力色（RGB のみ使用）</td>
+</tr>
+<tr>
+<td><code>_Alpha</code></td>
+<td>Alpha</td>
+<td>Range(0, 1)</td>
+<td><code>1.0</code></td>
+<td>出力アルファ</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mashirotheatertwosidedoverlaytexture-1">MashiroTheater/TwoSidedOverlayTexture</h3>
+<table>
+<thead>
+<tr>
+<th>プロパティ</th>
+<th>表示名</th>
+<th>型</th>
+<th>既定値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>_MainTex</code></td>
+<td>Texture</td>
+<td>2D</td>
+<td><code>white</code></td>
+<td>テクスチャ</td>
+</tr>
+<tr>
+<td><code>_Color</code></td>
+<td>Color</td>
+<td>Color（HDR）</td>
+<td><code>(1, 1, 1, 1)</code></td>
+<td>乗算色</td>
+</tr>
+<tr>
+<td><code>_Alpha</code></td>
+<td>Alpha</td>
+<td>Range(0, 1)</td>
+<td><code>1.0</code></td>
+<td>アルファへの乗算値</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ライセンス">ライセンス</h2>
+<ul>
+<li>MIT License（リポジトリルートの <code>LICENSE.md</code>）。</li>
+</ul>
+
+</main>
+<footer>v0.2.0 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
+</body>
+</html>

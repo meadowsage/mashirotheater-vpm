@@ -1,41 +1,52 @@
 # Mashiro Speed Change Zone
 
-指定エリア内にいる間、プレイヤーの移動速度を倍率変更するギミックです。舞台裏の高速移動や、演出上の減速エリアなどに使います。
+指定した BoxCollider の範囲内にローカルプレイヤーがいる間、移動速度（Walk / Run / Strafe）に倍率を掛けるコンポーネント。
 
-## 主な機能・仕様
+## 構成
 
-- Start 時に実測した通常速度を基準（Neutral）とし、毎チェックで「エリア内なら Neutral × 倍率 / 外なら Neutral」を維持します（ステートレス方式）
-- 判定はローカルプレイヤーの**足元位置**で行い、回転した BoxCollider にも対応
-- 完全ローカル処理（同期なし）
-- コンポーネントが無効化・破棄されたとき（`OnDisable` / `OnDestroy`）は、速度を Neutral へ戻します
-- **他の移動速度系ギミックとの併用は非対応**です。本コンポーネントが速度の最終決定者として毎回上書きします
+| ファイル | 役割 |
+| --- | --- |
+| `MashiroSpeedChangeZone.cs` / `.asset` | エリア判定と移動速度の設定 |
+| `SpeedChangeZone.prefab` | `MashiroSpeedChangeZone`、Trigger の BoxCollider（サイズ `(1, 1, 1)`）、無効化した MeshRenderer を持つ GameObject |
 
-## セットアップ
+## 依存
 
-同梱の `SpeedChangeZone.prefab` は、エリア形状用の Trigger 付き BoxCollider（描画は無効）と `MashiroSpeedChangeZone` を持つプレハブです。
+- パッケージ `MashiroTheater-Utils`（VPM `com.mashirotheater.utils`）に同梱。
 
-1. `SpeedChangeZone.prefab` をシーンに配置し、Transform の位置・スケールで速度を変えたいエリアの形を作ります。
-2. `Speed Zones` に、そのエリアの BoxCollider（プレハブ自身のものでも可）を割り当てます。プレハブでは未設定のため、割り当てないと何も起こりません。
-3. `Speed Ratio` で倍率を調整します。
+## 仕様
 
-プレハブを使わない場合は、`MashiroSpeedChangeZone` を任意の GameObject に付け、同じく `Speed Zones` と倍率を設定します。
+- 同期方式: `BehaviourSyncMode.NoVariableSync`。同期変数なし。ローカルプレイヤーにのみ作用する。
+- 基準速度: `Start` 時に `GetWalkSpeed()` / `GetRunSpeed()` / `GetStrafeSpeed()` で取得した値。以後は更新しない。
+- 判定タイミング: `Start` 時に 1 回、以後 `updateInterval` 秒ごと（`Update` で経過時間を加算）。
+- 判定位置: ローカルプレイヤーの `GetPosition()`（足元）。
+- 判定方式: 各 BoxCollider の `ClosestPoint()` と判定位置の距離が `0.02` m 以下ならエリア内とする。BoxCollider の回転を反映する。
+- 判定から除外する BoxCollider: `null`、`enabled == false`、GameObject が `activeInHierarchy == false` のもの。
+- 目標速度: いずれかのエリア内なら「基準速度 × `speedRatio`」、エリア外なら基準速度。Walk / Run / Strafe の 3 種に同じ倍率を掛ける。
+- 速度の設定: 現在値と目標値の差が `applyEpsilon` を超える種別だけ `SetWalkSpeed()` / `SetRunSpeed()` / `SetStrafeSpeed()` を呼ぶ。
+- エリア内外にかかわらず毎判定で目標速度へ設定するため、他のコンポーネントが変更した移動速度は次の判定で上書きされる。
+- `OnDisable` / `OnDestroy` 時は基準速度へ戻す（差が `applyEpsilon` を超える種別のみ）。
+- `speedZones` が未設定（空）のときは常にエリア外として扱う。
 
-| フィールド | 既定値 | 内容 |
-|---|---|---|
-| `Speed Zones` | – | 速度倍率を適用するエリアの BoxCollider 群 |
-| `Update Interval` | `1.0` 秒 | チェック間隔 |
-| `Speed Ratio` | `0.44` | エリア内での速度倍率（0.05〜10） |
-| `Apply Epsilon` | `0.01` | この差を超えたときだけ速度を再設定（微小な上書きの抑制） |
+## Inspector
+
+| フィールド | 型 | 既定値 | 必須 | 内容 |
+| --- | --- | --- | --- | --- |
+| `speedZones` | `BoxCollider[]` | 空 | ○ | 倍率を適用するエリア |
+| `updateInterval` | `float` | `1.0` | – | 判定間隔（秒） |
+| `speedRatio` | `float`（`[Range(0.05, 10)]`） | `0.44` | – | エリア内の速度倍率 |
+| `applyEpsilon` | `float` | `0.01` | – | 現在値と目標値の差がこの値を超えたときだけ速度を設定する |
+
+`SpeedChangeZone.prefab` では `speedZones` は未設定。
 
 ## API リファレンス
 
 ### MashiroSpeedChangeZone
 
-public 関数はありません。**配線は不要**で、Inspector の設定だけで動作します。
+public メソッド・プロパティはない。UI への配線は不要。
 
 ## ライセンス
 
-このフォルダの内容は MIT License で提供します（リポジトリルートの `LICENSE.md` を参照）。
+MIT License（リポジトリルートの `LICENSE.md` を参照）。
 
 ---
 

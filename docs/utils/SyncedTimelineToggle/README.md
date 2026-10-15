@@ -1,97 +1,111 @@
 # SyncedTimelineToggle
 
-タイムライン（`PlayableDirector`）の再生をトグルボタンで制御し、状態を全プレイヤーで同期するツールです。
-ボタンを押すとタイムライン前半（OFF→ON）が再生されて**中央で停止**し、もう一度押すと
-後半（ON→OFF）が再生されて先頭へ戻ります。複数のトグルを排他グループにまとめることもできます。
+`PlayableDirector` の再生をトグル操作で制御し、ON/OFF 状態を全プレイヤーで同期するコンポーネント。ON でタイムラインの先頭から中央まで再生して停止し、OFF で中央から末尾まで再生する。`MashiroTimelineToggleExclusiveGroup` で複数のトグルを排他（同時に ON は 1 つ）にできる。
 
-| コンポーネント | 同期 | 主な用途 |
-| --- | --- | --- |
-| `MashiroTimelineToggle` | 全プレイヤーで同期 | 1 つのタイムラインを ON/OFF トグルで制御する |
-| `MashiroTimelineToggleExclusiveGroup` | 全プレイヤーで同期 | 複数のトグルを「同時に 1 つだけ ON」に排他制御する |
+## 構成
 
-## タイムラインの作り方（重要）
+| ファイル | 役割 |
+| --- | --- |
+| `MashiroTimelineToggle.cs` / `.asset` | 1 本のタイムラインの ON/OFF 再生・ボタン色・同期 |
+| `MashiroTimelineToggleExclusiveGroup.cs` / `.asset` | 子階層のトグルの排他制御・同期 |
 
-このツールは **1 本のタイムラインを前半・後半の 2 区間** として扱います。
+## 依存
 
-- **前半（0 〜 中央）**: OFF から ON への遷移アニメーション
-- **中央（タイムライン全長の半分）**: ON 状態の見せたいポーズ。ここで停止します
-- **後半（中央 〜 末尾）**: ON から OFF への遷移アニメーション
+- パッケージ `MashiroTheater-Utils`（VPM `com.mashirotheater.utils`）に同梱。
+- `MashiroTimelineToggle` は `PlayableDirector` の参照を必要とする。
+- ボタン色の適用先は同じ GameObject の `UnityEngine.UI.Button`、ラベルの表示先は `TextMeshProUGUI`（いずれも任意）。
 
-そのため、タイムラインは「**先頭＝OFF の見た目**」「**ちょうど中央＝ON の見た目**」「**末尾＝再び OFF の見た目**」に
-なるよう作成してください。中央が ON のポーズになるように尺を調整するのがポイントです。
+## 仕様
 
-## 使い方
+### タイムラインの区間
 
-1. 対象のボタン GameObject に `MashiroTimelineToggle` を追加します。
-2. インスペクタで以下を設定します。
-   - **Timeline**: 制御したい `PlayableDirector`
-   - **Active Color / Inactive Color**: ON 時 / OFF 時のボタン色（遷移中はこの 2 色を補間します）。色が反映されるのは同じ GameObject に `Button` コンポーネントがある場合のみです
-   - **Use GameObject Name For Label**: 子の `TextMeshProUGUI` に GameObject 名を自動表示するか
-3. ラベルを表示したい場合は、子に `TextMeshProUGUI` を置いておきます。
+- `Start` 時に `PlayableDirector.duration / 2` を中央時刻とし、`time = 0` にして `Stop()` する。
+- ON: `time = 0` から再生し、`time >= 中央時刻` になったフレームで `time = 中央時刻` に設定して `Evaluate()` し、`Pause()` する。
+- OFF: `time = 中央時刻` から再生し、`time >= 中央時刻 × 2` または `time == 0` になったフレームで `Stop()` する。
 
-### 操作方法（2 種類サポート）
+### MashiroTimelineToggle
 
-`MashiroTimelineToggle` は以下のどちらの形態でも動作します。
+- 同期方式: `BehaviourSyncMode.Manual`。
+- 同期変数: `state`（`bool`、初期値 `false`、`FieldChangeCallback` → `State`）。同期受信で値が変わると `SetState()` と同じ処理を行う。
+- 単独使用時（グループ未所属）の操作:
+  - 再生中（ON/OFF の遷移中）は操作を無視する。
+  - 操作したプレイヤーが所有権を取得し、`state` を反転して同期を要求する。
+- グループ所属時の操作: グループの `OnToggleClicked()` へ委譲する。再生中の操作も受け付ける。トグル自身の `state` は送信しない。
+- 操作の入力:
+  - `OnButtonClick()`（`Button.OnClick` からの配線用）。
+  - `Interact()`（VRChat の Use 操作）。同じ GameObject に `Button` がある場合は何もしない。
+- ボタン色: 同じ GameObject の `Button.colors` を書き換える。`Button` がない場合は何もしない。
+  - `normalColor` / `selectedColor` に指定色を設定する。
+  - `highlightedColor` = 指定色と白を `0.1` で補間した色、`pressedColor` = 指定色と黒を `0.1` で補間した色。
+  - ON 遷移中は `inactiveColor` → `activeColor`、OFF 遷移中は `activeColor` → `inactiveColor` を再生位置に応じて補間する。
+  - `Start` 時は `inactiveColor`（`timeline` 設定時のみ）。
+- ラベル: `useGameObjectNameForLabel` が `true` のとき、`Start` 時に `GetComponentInChildren<TextMeshProUGUI>(true)` で得たテキストへ GameObject 名を設定する。
+- `timeline` 未設定で `SetState()` が実行されると例外になる（null チェックなし）。
+- `AddComponentMenu`: `MashiroTheater/Mashiro Timeline Toggle`。
 
-#### A. UI ボタンとして使う
+### MashiroTimelineToggleExclusiveGroup
 
-- GameObject に `Button` コンポーネントを付け、`OnClick()` から当該スクリプトの
-  `OnButtonClick` を呼ぶように設定します。
+- 同期方式: `BehaviourSyncMode.Manual`。
+- 同期変数: `activeIndex`（`int`、初期値 `-1`、`FieldChangeCallback` → `ActiveIndex`）。ON のトグルの番号。`-1` は全 OFF。
+- 所属トグル: `Start` 時に `GetComponentsInChildren<MashiroTimelineToggle>(true)`（非アクティブを含む）で収集し、各トグルに `InitializeWithGroup(this)` を呼ぶ。番号はこの取得順。
+- `OnToggleClicked()`: 所有権を取得し、押されたトグルが ON 中なら `activeIndex = -1`、それ以外なら押されたトグルの番号を設定して同期を要求する。
+- `ActiveIndex` 設定時の動作:
+  - 現在 ON のトグルがある場合: そのトグルを `SetState(false)` し、新しい番号が有効なら `crossFadeDelay` 秒後（`SendCustomEventDelayedSeconds`）に新しいトグルを `SetState(true)` する。
+  - 現在 ON のトグルがない場合: 新しい番号が有効なら即時に `SetState(true)` する。
+- `Start` 時に `ActiveIndex = activeIndex` を実行し、同期を要求する。
+- `AddComponentMenu`: `MashiroTheater/Mashiro Timeline Toggle Exclusive Group`。
 
-#### B. 3D オブジェクトとして使う
+## Inspector
 
-- `Button` コンポーネントを付けず、`Collider` を付けます。
-- VRChat の「Use（インタラクト）」操作でトグルできます。
-- この形態では `Active Color` / `Inactive Color` は反映されません（色の適用先が `Button` のため）。見た目の変化はタイムライン側で付けてください。
+### MashiroTimelineToggle
 
-## 排他グループ（MashiroTimelineToggleExclusiveGroup）
+| フィールド | 型 | 既定値 | 必須 | 内容 |
+| --- | --- | --- | --- | --- |
+| `timeline` | `PlayableDirector` | なし | ○ | 制御するタイムライン |
+| `activeColor` | `Color` | `(0.69, 0.239, 0.016, 1)` | – | ON 時のボタン色 |
+| `inactiveColor` | `Color` | `(0, 0, 0, 1)` | – | OFF 時のボタン色 |
+| `useGameObjectNameForLabel` | `bool` | `true` | – | 自身または子の `TextMeshProUGUI` に GameObject 名を表示する |
 
-複数のトグルを「**同時に ON になるのは 1 つだけ**」に制御したい場合に使います。
+### MashiroTimelineToggleExclusiveGroup
 
-### セットアップ
+| フィールド | 型 | 既定値 | 必須 | 内容 |
+| --- | --- | --- | --- | --- |
+| `crossFadeDelay` | `float` | `0.1` | – | ON のトグルを OFF にしてから新しいトグルを ON にするまでの秒数 |
 
-1. 親 GameObject に `MashiroTimelineToggleExclusiveGroup` を付けます。
-2. その子階層に複数の `MashiroTimelineToggle` を配置します
-   （`GetComponentsInChildren` で自動的に収集・登録されます）。
-3. **Cross Fade Delay**（既定 `0.1` 秒）: 既に ON のトグルを OFF にしてから、新しいトグルを ON にするまでの
-   待機秒数。古いタイムラインの戻りと新しいタイムラインの立ち上がりが重ならないよう調整します。
-
-### 挙動
-
-- 既に ON のトグルがある状態で別のトグルを押すと、現在の ON を OFF にしてから
-  `Cross Fade Delay` 秒後に新しいトグルを ON にします。
-- 同じトグルをもう一度押すと、そのトグルが OFF になります（全て OFF の状態）。
-- 状態（`activeIndex`）はコントローラに 1 つだけ同期され、後から Join したプレイヤーにも反映されます。
-- 操作したプレイヤーが自動的にオーナーになります。
-
-## 中央停止の精度について
-
-ON にしたときの停止位置は、フレームレートに依存せず**常にタイムラインの中央**になるよう、
-中央時刻へスナップしてから停止しています。これにより、端末性能の差で停止位置が
-プレイヤーごとに微妙にずれることを防いでいます。
+`toggles`（`MashiroTimelineToggle[]`）は `[HideInInspector]`。`Start` 時に子階層から収集した値で上書きされる。
 
 ## API リファレンス
 
 ### MashiroTimelineToggle
 
-| メソッド／プロパティ | 用途 | 呼び出し種別 |
-|---|---|---|
-| `OnButtonClick()` | 再生状態をトグル（全員同期） | `Button.OnClick` から配線 |
-| `Interact()` | 同上 | オブジェクトへの Interact（配線不要）。`Button` が付いている場合は二重発火防止のため何もしません |
-| `SetState(bool)` | 再生状態を直接設定 | 他の Udon・グループが呼ぶ内部連携用 |
-| `State`（`bool`） | 同期状態の取得／設定。設定時は `SetState(bool)` と同じ | 内部専用（同期変数の受け口・配線不要） |
-| `InitializeWithGroup(...)` | 排他グループへの登録 | グループが呼ぶ内部連携用 |
+UI へ手配線するもの:
+
+| シグネチャ | 用途 | 呼び出し種別 |
+| --- | --- | --- |
+| `void OnButtonClick()` | ON/OFF を切り替える（グループ所属時はグループへ委譲） | `Button.OnClick` から配線 |
+
+内部連携用（配線不要）:
+
+| シグネチャ | 用途 | 呼び出し種別 |
+| --- | --- | --- |
+| `void Interact()` | `OnButtonClick()` と同じ。`Button` がある場合は何もしない | VRChat が呼ぶ（Use 操作） |
+| `void SetState(bool value)` | `state` を設定し、ON/OFF の区間を再生する。同期は要求しない | グループ・他 Udon が呼ぶ |
+| `bool State { get; set; }` | `state` の取得。設定は `SetState(value)` と同じ | 同期変数の `FieldChangeCallback`（内部専用） |
+| `void InitializeWithGroup(MashiroTimelineToggleExclusiveGroup exclusiveGroup)` | 所属グループを設定する | グループが `Start` 時に呼ぶ |
 
 ### MashiroTimelineToggleExclusiveGroup
 
-| メソッド／プロパティ | 用途 | 呼び出し種別 |
-|---|---|---|
-| `ActiveIndex`（`int`） | ON にするトグルの番号（`-1` で全 OFF）。設定すると排他切替を実行する | 内部専用（同期変数の受け口・配線不要） |
-| `OnToggleClicked(...)` / `_DelayedActivate()` | 排他制御の内部処理 | 内部専用（配線不要） |
+内部連携用（配線不要）:
+
+| シグネチャ | 用途 | 呼び出し種別 |
+| --- | --- | --- |
+| `void OnToggleClicked(MashiroTimelineToggle toggle)` | 押されたトグルに応じて `activeIndex` を更新し同期する | 所属トグルが呼ぶ |
+| `int ActiveIndex { get; set; }` | `activeIndex` の取得。設定時に排他切替を実行する | 同期変数の `FieldChangeCallback`（内部専用） |
+| `void _DelayedActivate()` | `activeIndex` のトグルを ON にする | `SendCustomEventDelayedSeconds` から呼ばれる（内部専用） |
 
 ## ライセンス
 
-このフォルダの内容は MIT License で提供します（リポジトリルートの `LICENSE.md` を参照）。
+MIT License（リポジトリルートの `LICENSE.md` を参照）。
 
 ---
 

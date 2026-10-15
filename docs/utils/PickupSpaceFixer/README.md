@@ -1,66 +1,92 @@
 # Mashiro Pickup Space Fixer
 
-舞台小道具（VRChat の Pickup オブジェクト）を、**持っている状態でのダブルトリガー**でその場の空間に固定し、**もう一度掴むだけで解除**するギミックです。
+保持中の Pickup をダブルトリガーでその場に固定し、固定中に掴むと固定を解除する UdonSharp コンポーネント（`MashiroPickupSpaceFixer`）。固定状態を全プレイヤーで同期する。
 
-固定中は重力を切り、Rigidbody をキネマティック化し、コライダーを IsTrigger 化することで、物理から切り離して空間にピタッと静止させます。座標を強制ロックするわけではないので固定中でも普通に掴んで動かせ、**掴んだ瞬間に物理を元へ戻す**ため、解除しても手の中に収まったまま（落下しない）になります。固定状態はネットワーク同期されるため、後から入室したプレイヤーにも正しく反映されます。
+## 構成
 
-## できること
+| ファイル | 内容 |
+|---|---|
+| `MashiroPickupSpaceFixer.cs` | 本体スクリプト（`MashiroTheater.MashiroPickupSpaceFixer`） |
+| `MashiroPickupSpaceFixer.asset` | `MashiroPickupSpaceFixer` の UdonSharp ProgramAsset |
 
-- 小道具を**手に持った状態でトリガーを素早く2回引く**と、その位置・姿勢で空間に固定される。
-- 固定中の小道具を**もう一度掴む**と固定が解除され、そのまま手に持った状態になる（落下しない）。
-- 固定状態は全プレイヤーで同期される（重力・コライダーの状態も含む）。
+## 依存
 
-## セットアップ
+- パッケージ: `MashiroTheater-Utils`（VPM `com.mashirotheater.utils`）
+- 同じ GameObject 上の次のコンポーネント（`Start` で取得する。null チェックは行わない）
+  - `VRC_Pickup`
+  - `Rigidbody`
+  - `Collider`（`GetComponents<Collider>()` で取得したすべて）
+- `VRCObjectSync`（位置・回転の同期用。本コンポーネントからは参照しない）
 
-1. 対象の小道具 GameObject に、以下が揃っていることを確認します。
-   - `VRC_Pickup`（Pickupable）
-   - `VRCObjectSync`（位置・回転の同期）
-   - `Rigidbody`
-   - `Collider`（1つ以上）
-2. 同じ GameObject に `Mashiro Pickup Space Fixer`（`MashiroPickupSpaceFixer`）コンポーネントを追加します。
-   - メニュー: `Add Component > MashiroTheater > Mashiro Pickup Space Fixer`
-   - `VRC_Pickup` / `Rigidbody` / `Collider` は**同一 GameObject に付いている前提**で、`Start` 時に自動取得されます。インスペクタでの参照割り当ては不要です。
+## 仕様
 
-### 箱（Box）に付ける場合
+### 固定
 
-箱の大きさに合わせた **BoxCollider が1つあれば十分**です。その1つが「掴み判定」と「固定中のトリガー化」を兼ねます。複数コライダーを分ける必要はありません（複数ある場合はすべて IsTrigger 化されます）。
+- `OnPickupUseDown` の発生時刻（`Time.time`）と前回の発生時刻の差が `doubleTriggerWindow` 秒以下のとき固定する。
+- 固定が成立すると前回時刻を破棄する（3 回目の押下は 1 回目として扱う）。
+- 固定中は固定処理を行わない。
+- 固定時の処理順:
+  1. オーナーでなければ `Networking.SetOwner` でオーナーになる。
+  2. `VRC_Pickup.Drop()` する。
+  3. `isFixed = true` にして物理状態を適用する。
+  4. `audioSource` と `fixSound` が両方設定されていれば `audioSource.PlayOneShot(fixSound)` する。
 
-## インスペクタ項目
+### 解除
 
-| 項目 | 説明 |
-|------|------|
-| Double Trigger Window | この秒数以内にトリガーを2回引くと固定が発動する（既定 0.3 秒） |
-| Audio Source | 効果音を鳴らす `AudioSource`。未設定なら効果音は鳴らない |
-| Fix Sound | 固定したときに鳴らす `AudioClip` |
+- 固定中に `OnPickup` が発生したとき、オーナーでなければオーナーになり、`isFixed = false` にして物理状態を適用する。
 
-### 効果音について
+### 物理状態
 
-固定したときに効果音を鳴らせます（任意）。`AudioSource` を割り当て、`Fix Sound` にクリップを設定してください。再生は **ローカルのみ**（操作した本人にだけ鳴る）で、ネットワーク同期はしません。空間で鳴らしたい場合は `AudioSource` の Spatial Blend を 3D 寄りに設定してください。
+| 状態 | `Rigidbody.useGravity` | `Rigidbody.isKinematic` | 全 `Collider.isTrigger` |
+|---|---|---|---|
+| 固定中 | `false` | `true` | `true` |
+| 非固定 | `true` | `false` | `false` |
 
-## 操作方法
+- 非固定時の値は固定値であり、元の設定値は保持しない。
+- `Start` で `isFixed` の値（既定 `false`）の状態を適用するため、Inspector 上の `useGravity` / `isKinematic` / `isTrigger` の設定は上書きされる。
+- `VRC_Pickup` の `pickupable` は変更しない。
+- Transform の位置・回転は変更しない。
 
-| 状態 | 操作 | 結果 |
-|------|------|------|
-| 手に持っている | トリガーを素早く2回 | その場に固定（重力OFF / 当たり判定はトリガー化） |
-| 固定中 | もう一度掴む | 固定解除 → そのまま手に持った状態（落下しない） |
+### 同期
 
-## 挙動の詳細・注意点
+- 同期モード: `BehaviourSyncMode.Continuous`
+- 同期変数: `isFixed`（`bool`、`[UdonSynced]`）
+- `OnDeserialization` と `OnOwnershipTransferred` で `isFixed` の物理状態を適用する。
+- 効果音は固定操作を行ったクライアントのみで再生し、同期しない。
+- 位置・回転の同期は行わない。
 
-- **解除しても落ちません。** 固定中に掴むと、掴んだ瞬間に物理（重力・キネマティック・コライダー）を元へ戻します。すでに手の中にあるため落下せず、手放せば通常どおり物理が働きます。
-- **座標は強制ロックしていません。** 重力OFF＋キネマティック化で静止させているだけなので、固定中でも通常どおり掴んで動かせます。
-- **コライダーは IsTrigger 化されます。** 固定中は他オブジェクトやプレイヤーとの物理的な当たり判定が無くなり、すり抜け可能になります（飾り付け用途を想定）。IsTrigger でも掴み操作は可能です。
-- **状態同期について。** `VRCObjectSync` は位置・回転は同期しますが、重力・キネマティック・IsTrigger といった物理プロパティは同期しません。本コンポーネントはこれらを `[UdonSynced]` の固定フラグで別途同期し、`OnDeserialization` で各クライアントへ反映します。なお `VRCObjectSync` は**同一オブジェクト上の Manual 同期 UdonBehaviour と共存できない**ため、本コンポーネントは `Continuous` 同期で実装しています。
-- 操作（固定／解除）を行うと、その操作者が自動的にオブジェクトの Owner になります。
+## Inspector
 
-## 再固定したい場合
+### MashiroPickupSpaceFixer
 
-固定中の小道具を掴むと解除されて手に持った状態になります。その状態で再びトリガーを素早く2回引けば、再度その場に固定できます。
+Add Component メニュー: `MashiroTheater/Mashiro Pickup Space Fixer`
+
+| フィールド | 型 | 既定値 | 必須 | 内容 |
+|---|---|---|---|---|
+| `doubleTriggerWindow` | `float` | `0.3` | – | ダブルトリガーと判定する押下間隔の上限（秒） |
+| `audioSource` | `AudioSource` | なし | – | 固定時の効果音を鳴らす `AudioSource`。未設定なら鳴らさない |
+| `fixSound` | `AudioClip` | なし | – | 固定時に鳴らす音。未設定なら鳴らさない |
 
 ## API リファレンス
 
 ### MashiroPickupSpaceFixer
 
-public 関数は VRChat のイベントオーバーライド（`OnPickup` / `OnPickupUseDown` 等）のみです。**配線は不要**で、Inspector の設定だけで動作します。
+#### UI へ手配線するもの
+
+なし。
+
+#### 内部連携用（配線不要）
+
+| シグネチャ | 用途 | 呼び出し種別 |
+|---|---|---|
+| `override void OnPickup()` | 固定中なら解除する | VRChat コールバック（内部専用） |
+| `override void OnPickupUseDown()` | ダブルトリガーを判定して固定する | VRChat コールバック（内部専用） |
+| `override void OnDeserialization()` | 同期された固定状態を物理へ適用する | VRChat コールバック（内部専用） |
+| `override void OnOwnershipTransferred(VRCPlayerApi player)` | 固定状態を物理へ再適用する | VRChat コールバック（内部専用） |
+
+## ライセンス
+
+MIT License（リポジトリルートの `LICENSE.md`）。
 
 ---
 

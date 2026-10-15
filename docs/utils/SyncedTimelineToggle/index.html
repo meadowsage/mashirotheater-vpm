@@ -35,151 +35,232 @@
 </style>
 </head>
 <body>
-<nav><a href="../../">マニュアル</a> / <a href="../">Mashiro Theater Utils</a></nav>
+<nav><a href="../../">リファレンス</a> / <a href="../">Mashiro Theater Utils</a></nav>
 <main>
 <h1 id="syncedtimelinetoggle">SyncedTimelineToggle</h1>
-<p>タイムライン（<code>PlayableDirector</code>）の再生をトグルボタンで制御し、状態を全プレイヤーで同期するツールです。
-ボタンを押すとタイムライン前半（OFF→ON）が再生されて<strong>中央で停止</strong>し、もう一度押すと
-後半（ON→OFF）が再生されて先頭へ戻ります。複数のトグルを排他グループにまとめることもできます。</p>
+<p><code>PlayableDirector</code> の再生をトグル操作で制御し、ON/OFF 状態を全プレイヤーで同期するコンポーネント。ON でタイムラインの先頭から中央まで再生して停止し、OFF で中央から末尾まで再生する。<code>MashiroTimelineToggleExclusiveGroup</code> で複数のトグルを排他（同時に ON は 1 つ）にできる。</p>
+<h2 id="構成">構成</h2>
 <table>
 <thead>
 <tr>
-<th>コンポーネント</th>
-<th>同期</th>
-<th>主な用途</th>
+<th>ファイル</th>
+<th>役割</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>MashiroTimelineToggle</code></td>
-<td>全プレイヤーで同期</td>
-<td>1 つのタイムラインを ON/OFF トグルで制御する</td>
+<td><code>MashiroTimelineToggle.cs</code> / <code>.asset</code></td>
+<td>1 本のタイムラインの ON/OFF 再生・ボタン色・同期</td>
 </tr>
 <tr>
-<td><code>MashiroTimelineToggleExclusiveGroup</code></td>
-<td>全プレイヤーで同期</td>
-<td>複数のトグルを「同時に 1 つだけ ON」に排他制御する</td>
+<td><code>MashiroTimelineToggleExclusiveGroup.cs</code> / <code>.asset</code></td>
+<td>子階層のトグルの排他制御・同期</td>
 </tr>
 </tbody>
 </table>
-<h2 id="タイムラインの作り方重要">タイムラインの作り方（重要）</h2>
-<p>このツールは <strong>1 本のタイムラインを前半・後半の 2 区間</strong> として扱います。</p>
+<h2 id="依存">依存</h2>
 <ul>
-<li><strong>前半（0 〜 中央）</strong>: OFF から ON への遷移アニメーション</li>
-<li><strong>中央（タイムライン全長の半分）</strong>: ON 状態の見せたいポーズ。ここで停止します</li>
-<li><strong>後半（中央 〜 末尾）</strong>: ON から OFF への遷移アニメーション</li>
+<li>パッケージ <code>MashiroTheater-Utils</code>（VPM <code>com.mashirotheater.utils</code>）に同梱。</li>
+<li><code>MashiroTimelineToggle</code> は <code>PlayableDirector</code> の参照を必要とする。</li>
+<li>ボタン色の適用先は同じ GameObject の <code>UnityEngine.UI.Button</code>、ラベルの表示先は <code>TextMeshProUGUI</code>（いずれも任意）。</li>
 </ul>
-<p>そのため、タイムラインは「<strong>先頭＝OFF の見た目</strong>」「<strong>ちょうど中央＝ON の見た目</strong>」「<strong>末尾＝再び OFF の見た目</strong>」に
-なるよう作成してください。中央が ON のポーズになるように尺を調整するのがポイントです。</p>
-<h2 id="使い方">使い方</h2>
-<ol>
-<li>対象のボタン GameObject に <code>MashiroTimelineToggle</code> を追加します。</li>
-<li>インスペクタで以下を設定します。
+<h2 id="仕様">仕様</h2>
+<h3 id="タイムラインの区間">タイムラインの区間</h3>
 <ul>
-<li><strong>Timeline</strong>: 制御したい <code>PlayableDirector</code></li>
-<li><strong>Active Color / Inactive Color</strong>: ON 時 / OFF 時のボタン色（遷移中はこの 2 色を補間します）。色が反映されるのは同じ GameObject に <code>Button</code> コンポーネントがある場合のみです</li>
-<li><strong>Use GameObject Name For Label</strong>: 子の <code>TextMeshProUGUI</code> に GameObject 名を自動表示するか</li>
+<li><code>Start</code> 時に <code>PlayableDirector.duration / 2</code> を中央時刻とし、<code>time = 0</code> にして <code>Stop()</code> する。</li>
+<li>ON: <code>time = 0</code> から再生し、<code>time &gt;= 中央時刻</code> になったフレームで <code>time = 中央時刻</code> に設定して <code>Evaluate()</code> し、<code>Pause()</code> する。</li>
+<li>OFF: <code>time = 中央時刻</code> から再生し、<code>time &gt;= 中央時刻 × 2</code> または <code>time == 0</code> になったフレームで <code>Stop()</code> する。</li>
+</ul>
+<h3 id="mashirotimelinetoggle">MashiroTimelineToggle</h3>
+<ul>
+<li>同期方式: <code>BehaviourSyncMode.Manual</code>。</li>
+<li>同期変数: <code>state</code>（<code>bool</code>、初期値 <code>false</code>、<code>FieldChangeCallback</code> → <code>State</code>）。同期受信で値が変わると <code>SetState()</code> と同じ処理を行う。</li>
+<li>単独使用時（グループ未所属）の操作:
+<ul>
+<li>再生中（ON/OFF の遷移中）は操作を無視する。</li>
+<li>操作したプレイヤーが所有権を取得し、<code>state</code> を反転して同期を要求する。</li>
 </ul>
 </li>
-<li>ラベルを表示したい場合は、子に <code>TextMeshProUGUI</code> を置いておきます。</li>
-</ol>
-<h3 id="操作方法2-種類サポート">操作方法（2 種類サポート）</h3>
-<p><code>MashiroTimelineToggle</code> は以下のどちらの形態でも動作します。</p>
-<h4 id="a-ui-ボタンとして使う">A. UI ボタンとして使う</h4>
+<li>グループ所属時の操作: グループの <code>OnToggleClicked()</code> へ委譲する。再生中の操作も受け付ける。トグル自身の <code>state</code> は送信しない。</li>
+<li>操作の入力:
 <ul>
-<li>GameObject に <code>Button</code> コンポーネントを付け、<code>OnClick()</code> から当該スクリプトの
-<code>OnButtonClick</code> を呼ぶように設定します。</li>
+<li><code>OnButtonClick()</code>（<code>Button.OnClick</code> からの配線用）。</li>
+<li><code>Interact()</code>（VRChat の Use 操作）。同じ GameObject に <code>Button</code> がある場合は何もしない。</li>
 </ul>
-<h4 id="b-3d-オブジェクトとして使う">B. 3D オブジェクトとして使う</h4>
+</li>
+<li>ボタン色: 同じ GameObject の <code>Button.colors</code> を書き換える。<code>Button</code> がない場合は何もしない。
 <ul>
-<li><code>Button</code> コンポーネントを付けず、<code>Collider</code> を付けます。</li>
-<li>VRChat の「Use（インタラクト）」操作でトグルできます。</li>
-<li>この形態では <code>Active Color</code> / <code>Inactive Color</code> は反映されません（色の適用先が <code>Button</code> のため）。見た目の変化はタイムライン側で付けてください。</li>
+<li><code>normalColor</code> / <code>selectedColor</code> に指定色を設定する。</li>
+<li><code>highlightedColor</code> = 指定色と白を <code>0.1</code> で補間した色、<code>pressedColor</code> = 指定色と黒を <code>0.1</code> で補間した色。</li>
+<li>ON 遷移中は <code>inactiveColor</code> → <code>activeColor</code>、OFF 遷移中は <code>activeColor</code> → <code>inactiveColor</code> を再生位置に応じて補間する。</li>
+<li><code>Start</code> 時は <code>inactiveColor</code>（<code>timeline</code> 設定時のみ）。</li>
 </ul>
-<h2 id="排他グループmashirotimelinetoggleexclusivegroup">排他グループ（MashiroTimelineToggleExclusiveGroup）</h2>
-<p>複数のトグルを「<strong>同時に ON になるのは 1 つだけ</strong>」に制御したい場合に使います。</p>
-<h3 id="セットアップ">セットアップ</h3>
-<ol>
-<li>親 GameObject に <code>MashiroTimelineToggleExclusiveGroup</code> を付けます。</li>
-<li>その子階層に複数の <code>MashiroTimelineToggle</code> を配置します
-（<code>GetComponentsInChildren</code> で自動的に収集・登録されます）。</li>
-<li><strong>Cross Fade Delay</strong>（既定 <code>0.1</code> 秒）: 既に ON のトグルを OFF にしてから、新しいトグルを ON にするまでの
-待機秒数。古いタイムラインの戻りと新しいタイムラインの立ち上がりが重ならないよう調整します。</li>
-</ol>
-<h3 id="挙動">挙動</h3>
+</li>
+<li>ラベル: <code>useGameObjectNameForLabel</code> が <code>true</code> のとき、<code>Start</code> 時に <code>GetComponentInChildren&lt;TextMeshProUGUI&gt;(true)</code> で得たテキストへ GameObject 名を設定する。</li>
+<li><code>timeline</code> 未設定で <code>SetState()</code> が実行されると例外になる（null チェックなし）。</li>
+<li><code>AddComponentMenu</code>: <code>MashiroTheater/Mashiro Timeline Toggle</code>。</li>
+</ul>
+<h3 id="mashirotimelinetoggleexclusivegroup">MashiroTimelineToggleExclusiveGroup</h3>
 <ul>
-<li>既に ON のトグルがある状態で別のトグルを押すと、現在の ON を OFF にしてから
-<code>Cross Fade Delay</code> 秒後に新しいトグルを ON にします。</li>
-<li>同じトグルをもう一度押すと、そのトグルが OFF になります（全て OFF の状態）。</li>
-<li>状態（<code>activeIndex</code>）はコントローラに 1 つだけ同期され、後から Join したプレイヤーにも反映されます。</li>
-<li>操作したプレイヤーが自動的にオーナーになります。</li>
+<li>同期方式: <code>BehaviourSyncMode.Manual</code>。</li>
+<li>同期変数: <code>activeIndex</code>（<code>int</code>、初期値 <code>-1</code>、<code>FieldChangeCallback</code> → <code>ActiveIndex</code>）。ON のトグルの番号。<code>-1</code> は全 OFF。</li>
+<li>所属トグル: <code>Start</code> 時に <code>GetComponentsInChildren&lt;MashiroTimelineToggle&gt;(true)</code>（非アクティブを含む）で収集し、各トグルに <code>InitializeWithGroup(this)</code> を呼ぶ。番号はこの取得順。</li>
+<li><code>OnToggleClicked()</code>: 所有権を取得し、押されたトグルが ON 中なら <code>activeIndex = -1</code>、それ以外なら押されたトグルの番号を設定して同期を要求する。</li>
+<li><code>ActiveIndex</code> 設定時の動作:
+<ul>
+<li>現在 ON のトグルがある場合: そのトグルを <code>SetState(false)</code> し、新しい番号が有効なら <code>crossFadeDelay</code> 秒後（<code>SendCustomEventDelayedSeconds</code>）に新しいトグルを <code>SetState(true)</code> する。</li>
+<li>現在 ON のトグルがない場合: 新しい番号が有効なら即時に <code>SetState(true)</code> する。</li>
 </ul>
-<h2 id="中央停止の精度について">中央停止の精度について</h2>
-<p>ON にしたときの停止位置は、フレームレートに依存せず<strong>常にタイムラインの中央</strong>になるよう、
-中央時刻へスナップしてから停止しています。これにより、端末性能の差で停止位置が
-プレイヤーごとに微妙にずれることを防いでいます。</p>
-<h2 id="api-リファレンス">API リファレンス</h2>
-<h3 id="mashirotimelinetoggle">MashiroTimelineToggle</h3>
+</li>
+<li><code>Start</code> 時に <code>ActiveIndex = activeIndex</code> を実行し、同期を要求する。</li>
+<li><code>AddComponentMenu</code>: <code>MashiroTheater/Mashiro Timeline Toggle Exclusive Group</code>。</li>
+</ul>
+<h2 id="inspector">Inspector</h2>
+<h3 id="mashirotimelinetoggle-1">MashiroTimelineToggle</h3>
 <table>
 <thead>
 <tr>
-<th>メソッド／プロパティ</th>
-<th>用途</th>
-<th>呼び出し種別</th>
+<th>フィールド</th>
+<th>型</th>
+<th>既定値</th>
+<th>必須</th>
+<th>内容</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>OnButtonClick()</code></td>
-<td>再生状態をトグル（全員同期）</td>
-<td><code>Button.OnClick</code> から配線</td>
+<td><code>timeline</code></td>
+<td><code>PlayableDirector</code></td>
+<td>なし</td>
+<td>○</td>
+<td>制御するタイムライン</td>
 </tr>
 <tr>
-<td><code>Interact()</code></td>
-<td>同上</td>
-<td>オブジェクトへの Interact（配線不要）。<code>Button</code> が付いている場合は二重発火防止のため何もしません</td>
+<td><code>activeColor</code></td>
+<td><code>Color</code></td>
+<td><code>(0.69, 0.239, 0.016, 1)</code></td>
+<td>–</td>
+<td>ON 時のボタン色</td>
 </tr>
 <tr>
-<td><code>SetState(bool)</code></td>
-<td>再生状態を直接設定</td>
-<td>他の Udon・グループが呼ぶ内部連携用</td>
+<td><code>inactiveColor</code></td>
+<td><code>Color</code></td>
+<td><code>(0, 0, 0, 1)</code></td>
+<td>–</td>
+<td>OFF 時のボタン色</td>
 </tr>
 <tr>
-<td><code>State</code>（<code>bool</code>）</td>
-<td>同期状態の取得／設定。設定時は <code>SetState(bool)</code> と同じ</td>
-<td>内部専用（同期変数の受け口・配線不要）</td>
-</tr>
-<tr>
-<td><code>InitializeWithGroup(...)</code></td>
-<td>排他グループへの登録</td>
-<td>グループが呼ぶ内部連携用</td>
+<td><code>useGameObjectNameForLabel</code></td>
+<td><code>bool</code></td>
+<td><code>true</code></td>
+<td>–</td>
+<td>自身または子の <code>TextMeshProUGUI</code> に GameObject 名を表示する</td>
 </tr>
 </tbody>
 </table>
-<h3 id="mashirotimelinetoggleexclusivegroup">MashiroTimelineToggleExclusiveGroup</h3>
+<h3 id="mashirotimelinetoggleexclusivegroup-1">MashiroTimelineToggleExclusiveGroup</h3>
 <table>
 <thead>
 <tr>
-<th>メソッド／プロパティ</th>
+<th>フィールド</th>
+<th>型</th>
+<th>既定値</th>
+<th>必須</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>crossFadeDelay</code></td>
+<td><code>float</code></td>
+<td><code>0.1</code></td>
+<td>–</td>
+<td>ON のトグルを OFF にしてから新しいトグルを ON にするまでの秒数</td>
+</tr>
+</tbody>
+</table>
+<p><code>toggles</code>（<code>MashiroTimelineToggle[]</code>）は <code>[HideInInspector]</code>。<code>Start</code> 時に子階層から収集した値で上書きされる。</p>
+<h2 id="api-リファレンス">API リファレンス</h2>
+<h3 id="mashirotimelinetoggle-2">MashiroTimelineToggle</h3>
+<p>UI へ手配線するもの:</p>
+<table>
+<thead>
+<tr>
+<th>シグネチャ</th>
 <th>用途</th>
 <th>呼び出し種別</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>ActiveIndex</code>（<code>int</code>）</td>
-<td>ON にするトグルの番号（<code>-1</code> で全 OFF）。設定すると排他切替を実行する</td>
-<td>内部専用（同期変数の受け口・配線不要）</td>
+<td><code>void OnButtonClick()</code></td>
+<td>ON/OFF を切り替える（グループ所属時はグループへ委譲）</td>
+<td><code>Button.OnClick</code> から配線</td>
+</tr>
+</tbody>
+</table>
+<p>内部連携用（配線不要）:</p>
+<table>
+<thead>
+<tr>
+<th>シグネチャ</th>
+<th>用途</th>
+<th>呼び出し種別</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>void Interact()</code></td>
+<td><code>OnButtonClick()</code> と同じ。<code>Button</code> がある場合は何もしない</td>
+<td>VRChat が呼ぶ（Use 操作）</td>
 </tr>
 <tr>
-<td><code>OnToggleClicked(...)</code> / <code>_DelayedActivate()</code></td>
-<td>排他制御の内部処理</td>
-<td>内部専用（配線不要）</td>
+<td><code>void SetState(bool value)</code></td>
+<td><code>state</code> を設定し、ON/OFF の区間を再生する。同期は要求しない</td>
+<td>グループ・他 Udon が呼ぶ</td>
+</tr>
+<tr>
+<td><code>bool State { get; set; }</code></td>
+<td><code>state</code> の取得。設定は <code>SetState(value)</code> と同じ</td>
+<td>同期変数の <code>FieldChangeCallback</code>（内部専用）</td>
+</tr>
+<tr>
+<td><code>void InitializeWithGroup(MashiroTimelineToggleExclusiveGroup exclusiveGroup)</code></td>
+<td>所属グループを設定する</td>
+<td>グループが <code>Start</code> 時に呼ぶ</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mashirotimelinetoggleexclusivegroup-2">MashiroTimelineToggleExclusiveGroup</h3>
+<p>内部連携用（配線不要）:</p>
+<table>
+<thead>
+<tr>
+<th>シグネチャ</th>
+<th>用途</th>
+<th>呼び出し種別</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>void OnToggleClicked(MashiroTimelineToggle toggle)</code></td>
+<td>押されたトグルに応じて <code>activeIndex</code> を更新し同期する</td>
+<td>所属トグルが呼ぶ</td>
+</tr>
+<tr>
+<td><code>int ActiveIndex { get; set; }</code></td>
+<td><code>activeIndex</code> の取得。設定時に排他切替を実行する</td>
+<td>同期変数の <code>FieldChangeCallback</code>（内部専用）</td>
+</tr>
+<tr>
+<td><code>void _DelayedActivate()</code></td>
+<td><code>activeIndex</code> のトグルを ON にする</td>
+<td><code>SendCustomEventDelayedSeconds</code> から呼ばれる（内部専用）</td>
 </tr>
 </tbody>
 </table>
 <h2 id="ライセンス">ライセンス</h2>
-<p>このフォルダの内容は MIT License で提供します（リポジトリルートの <code>LICENSE.md</code> を参照）。</p>
+<p>MIT License（リポジトリルートの <code>LICENSE.md</code> を参照）。</p>
 <hr />
 <p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
 <ul>
@@ -189,6 +270,6 @@
 </ul>
 
 </main>
-<footer>main@2698a7a 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
+<footer>v0.2.0 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
 </body>
 </html>

@@ -1,55 +1,121 @@
 # Mashiro Auto Door
 
-プレイヤーの接近で開閉する自動ドアです。Timeline の前半を「開き」、後半を「閉じ」とみなして再生位置を制御するため、開閉途中でも自然に反転します。
+プレイヤーの入室で開き、エリア内が無人になると閉じる自動ドア。1 本の Timeline の前半を開きアニメ、後半を閉じアニメとして再生位置を制御し、開閉途中での反転に対応する。
 
-## 主な機能・仕様
+## 構成
 
-- 誰かが判定エリアに入ると即座に開き始める（閉じ途中でも逆算して開き直す）
-- **最後の入室**から `Close Delay` 秒ごとにエリア内をチェックし、誰もいなければ閉じ始める（開き途中でも逆算して閉じ直す）
-  - まだ人がいればタイマーをリセットし、さらに `Close Delay` 秒後に再チェックします
-  - そのため、最後の 1 人が出てから実際に閉じ始めるまで最大 `Close Delay` 秒かかります
-- 判定にはプレイヤーの**足元位置**を使用（リモートプレイヤーの Head ボーンは視界外で位置が凍結することがあり、誤動作の原因になるため）
-- 全クライアントが同じ条件で同じ判定をローカル実行するため、見え方は一致します（ネットワーク同期なし）
+| ファイル | 役割 |
+| --- | --- |
+| `MashiroAutoDoor.cs` | ドア制御本体（Timeline の再生制御・在室チェック） |
+| `MashiroAutoDoor.asset` | `MashiroAutoDoor` の UdonSharp ProgramAsset |
+| `AutoDoorTrigger.cs` | トリガーコライダーの入退室イベントを `MashiroAutoDoor` へ中継する |
+| `AutoDoorTrigger.asset` | `AutoDoorTrigger` の UdonSharp ProgramAsset |
+| `自動ドア.prefab` | `MashiroAutoDoor`・`AutoDoorTrigger`・`PlayableDirector` を設定済みのドア一式 |
+| `AutoDoor.playable` | 開閉アニメーションの TimelineAsset（全長 6 秒） |
+| `AutoDoorSample.playable` | 開閉アニメーションの TimelineAsset（全長 4 秒） |
 
-## 同梱ファイル
+## 依存
 
-- `MashiroAutoDoor.cs` — ドア制御本体
-- `AutoDoorTrigger.cs` — 判定コライダー側に付けるトリガー中継
-- `自動ドア.prefab` — 構成例プレハブ
-- `AutoDoor.playable` / `AutoDoorSample.playable` — 開閉アニメの Timeline サンプル
+- パッケージ: `MashiroTheater-Utils`（VPM `com.mashirotheater.utils`）
+- `MashiroAutoDoor.timeline` に `PlayableDirector`（開閉アニメの TimelineAsset を割り当てたもの）が必要。
+- `AutoDoorTrigger` と同じ GameObject に、Is Trigger の Collider が必要（`OnPlayerTriggerEnter` / `OnPlayerTriggerExit` を受けるため）。
 
-## セットアップ
+## 仕様
 
-1. ドアの開閉アニメを 1 本の Timeline にまとめます（**前半 = 開き、後半 = 閉じ**）
-2. `MashiroAutoDoor` の `Timeline` に PlayableDirector、`Trigger Zone` に判定用 BoxCollider を割り当てます
-3. 判定コライダー（IsTrigger）のオブジェクトに `AutoDoorTrigger` を付け、`Auto Door` フィールドに本体を割り当てます
+### Timeline の区間
 
-| フィールド | 既定値 | 内容 |
-|---|---|---|
-| `Timeline` | – | 開閉アニメの PlayableDirector |
-| `Trigger Zone` | – | ドア周囲の判定 BoxCollider |
-| `Close Delay` | `3` 秒 | 最後の入室から在室チェックを行うまでの待機時間 |
+- `0` 〜 `duration / 2` を開きアニメ、`duration / 2` 〜 `duration` を閉じアニメとして扱う。
+- `duration` は `Start` 時点の `PlayableDirector.duration` を使う。
+- `Start` で再生位置を `duration` に設定して `Evaluate` → `Pause` し、全閉状態で開始する。
+- 開き再生中に再生位置が `duration / 2` 以上になると、`duration / 2` に固定して `Pause` する（全開）。
+- 閉じ再生中に再生位置が `duration` 以上になると、`duration` に固定して `Pause` する（全閉）。
 
-> **`Trigger Zone` は回転させないでください**
-> 在室チェックは Collider のワールド AABB（軸に沿った境界ボックス）で行うため、回転させた BoxCollider では実際の形状より広い範囲が「エリア内」と判定されます。判定範囲はワールド軸に沿った位置・サイズで調整してください。
+### 開く条件
+
+- `AutoDoorTrigger` の `OnPlayerTriggerEnter` が発火すると `MashiroAutoDoor.OnPlayerEntered` が呼ばれる。対象はローカル・リモートを問わず全プレイヤー。
+- 入室のたびに最終入室時刻（`Time.time`）を更新する。
+- ドアが全閉または閉じ途中のときのみ開き始める。
+  - 全閉から: 再生位置 `0` から再生する。
+  - 閉じ途中から: 閉じ区間の進捗 `p` を求め、再生位置 `(duration / 2) × (1 − p)` から開き再生する。
+- 退室（`OnPlayerTriggerExit` → `OnPlayerExited`）では何もしない。
+
+### 閉じる条件
+
+- ドアが全開または開き途中の間、`Update` で最終入室時刻からの経過時間を確認する。
+- 経過時間が `closeDelay` 秒以上になった時点で在室チェックを行う。
+  - 在室者がいる: 最終入室時刻を現在時刻にリセットする（`closeDelay` 秒後に再チェック）。
+  - 在室者がいない: 閉じ始める。
+- 閉じ始めの再生位置:
+  - 全開から: `duration / 2` から再生する。
+  - 開き途中から: 開き区間の進捗 `p` を求め、再生位置 `duration / 2 + (duration / 2) × (1 − p)` から閉じ再生する。
+
+### 在室チェック
+
+- `triggerZone.bounds`（ワールド座標の AABB）に、各プレイヤーの `VRCPlayerApi.GetPosition()`（足元位置）が含まれるかで判定する。
+- `triggerZone` を回転させても、判定は回転後のコライダーを包むワールド軸平行の箱で行われる。
+- `triggerZone` が未設定のときは常に「在室者なし」と判定する。
+- 入室の検出（`AutoDoorTrigger` のコライダー）と在室チェック（`triggerZone`）は別々のコライダーを参照する。
+
+### 同期
+
+- 両コンポーネントとも `[UdonSynced]` フィールドを持たず、`[UdonBehaviourSyncMode]` も指定していない。
+- 開閉判定・Timeline 制御は各クライアントでローカルに実行する。
+
+### エラー時の挙動
+
+| 条件 | 挙動 |
+| --- | --- |
+| `timeline` 未設定 | `Start` で Warning `[MashiroAutoDoor] Timeline is not assigned.` を出し、コンポーネントを無効化する |
+| `triggerZone` 未設定 | `Start` で Warning `[MashiroAutoDoor] BoxCollider is not assigned.` を出す。動作は継続する |
+| `autoDoor` 未設定（`AutoDoorTrigger`） | 入退室イベントを中継しない |
+
+## Inspector
+
+### MashiroAutoDoor
+
+| フィールド | 型 | 既定値 | 必須 | 内容 |
+| --- | --- | --- | --- | --- |
+| `timeline` | `PlayableDirector` | なし | ○ | 開閉アニメの TimelineAsset を再生する PlayableDirector |
+| `triggerZone` | `BoxCollider` | なし | — | 在室チェックに使うコライダー |
+| `closeDelay` | `float` | `3` | — | 最終入室から在室チェックを行うまでの秒数 |
+
+### AutoDoorTrigger
+
+| フィールド | 型 | 既定値 | 必須 | 内容 |
+| --- | --- | --- | --- | --- |
+| `autoDoor` | `MashiroAutoDoor` | なし | ○ | 入退室イベントの中継先 |
 
 ## API リファレンス
 
 ### MashiroAutoDoor
 
-| メソッド | 呼び出し種別 |
-|---|---|
-| `OnPlayerEntered(VRCPlayerApi)` / `OnPlayerExited(VRCPlayerApi)` | `AutoDoorTrigger` が呼ぶ内部連携用（手配線不要） |
+#### UI へ手配線するもの
+
+なし。
+
+#### 内部連携用（配線不要）
+
+| シグネチャ | 用途 | 呼び出し種別 |
+| --- | --- | --- |
+| `void OnPlayerEntered(VRCPlayerApi player)` | 最終入室時刻を更新し、閉状態・閉じ途中なら開き始める | `AutoDoorTrigger` が呼ぶ |
+| `void OnPlayerExited(VRCPlayerApi player)` | 処理なし | `AutoDoorTrigger` が呼ぶ |
 
 ### AutoDoorTrigger
 
-| メソッド | 呼び出し種別 |
-|---|---|
-| `OnPlayerTriggerEnter(VRCPlayerApi)` / `OnPlayerTriggerExit(VRCPlayerApi)` | VRChat イベントのオーバーライド（配線不要）。本体へ中継するだけ |
+#### UI へ手配線するもの
+
+なし。
+
+#### 内部連携用（配線不要）
+
+| シグネチャ | 用途 | 呼び出し種別 |
+| --- | --- | --- |
+| `void OnPlayerTriggerEnter(VRCPlayerApi player)` | `autoDoor.OnPlayerEntered` を呼ぶ | VRChat コールバック（内部専用） |
+| `void OnPlayerTriggerExit(VRCPlayerApi player)` | `autoDoor.OnPlayerExited` を呼ぶ | VRChat コールバック（内部専用） |
 
 ## ライセンス
 
-このフォルダの内容は MIT License で提供します（リポジトリルートの `LICENSE.md` を参照）。
+MIT License（`MashiroTheater-Utils` 同梱の `LICENSE.md` を参照）。
 
 ---
 

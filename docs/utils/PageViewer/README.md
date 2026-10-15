@@ -1,86 +1,106 @@
 # Mashiro Page Viewer
 
-Sprite 配列をページ送りで表示する画像ビューアです。台本・パンフレット・スライド資料などの複数ページ画像を、フェード付きでめくって閲覧できます。ページ位置を全員で同期するモードと、各自がローカルでめくるモードを選べます。
+Sprite 配列を 1 枚ずつ `Image` に表示し、フェード付きでページ送りする UdonSharp コンポーネント（`MashiroPageViewer`）。ページ位置はローカル管理と全プレイヤー同期を切り替えられる。対象 Transform の拡大・縮小と水平化も行う。
 
-## 主な機能
-
-- Sprite 配列のページ送り（前へ / 次へ、末尾と先頭はループ）
-- ページ切り替え時のフェード（時間は調整可）
-- ページ番号表示（"3 / 12" 形式）
-- **グローバル同期モード**（任意）: ページ位置を全プレイヤーで共有。めくった人がオーナーになり、Late Joiner にも現在ページが反映される
-- 拡大・縮小（対象 Transform のスケール操作、上限・下限あり）
-- 水平化（傾きのリセット）
-- 同じページを複数の `Image` に同時表示（メイン + 追加ディスプレイ）
-
-## 同梱ファイル
-
-配布パッケージに含まれるもの。
-
-| ファイル | 用途 |
-|---|---|
-| `MashiroPageViewer.prefab` | 基本構成（表示 Image + ページ送り UI） |
-| `MashiroImageGalleryWithUIHandle.prefab` | UI ハンドル付きのギャラリー構成例（`MashiroPageViewer.prefab` を内包） |
-| `Images/arrow_left.png` `Images/arrow_right.png` | ページ送りボタン用の矢印画像 |
-
-以下はリポジトリ上にのみ存在するサンプルで、**配布パッケージには含まれません**。
+## 構成
 
 | ファイル | 内容 |
 |---|---|
-| `台本Local_横.prefab` / `台本Local_縦.prefab` | 台本用のローカル閲覧構成サンプル（横書き / 縦書き） |
-| `BREAK_FAST/` | 動作確認用のサンプルページ画像 9 枚 |
+| `MashiroPageViewer.cs` | 本体スクリプト（`MashiroPageViewer`） |
+| `MashiroPageViewer.asset` | `MashiroPageViewer` の UdonSharp ProgramAsset |
+| `MashiroPageViewer.prefab` | Canvas 配下に表示 `Image`・`Prev` / `Next` ボタン・ページ番号用 `TextMeshProUGUI`・`MashiroPageViewer` を配置したプレハブ |
+| `MashiroImageGalleryWithUIHandle.prefab` | `MashiroPageViewer.prefab` をネストし、ルートに `BoxCollider`・`Rigidbody`・`VRC_Pickup` を持つプレハブ |
+| `台本Local_横.prefab` | 台本用のローカル閲覧構成（横）（配布対象外） |
+| `台本Local_縦.prefab` | 台本用のローカル閲覧構成（縦）（配布対象外） |
+| `BREAK_FAST/` | サンプルページ画像 9 枚（配布対象外） |
 
-## セットアップ
+## 依存
 
-1. プレハブをシーンに配置するか、Canvas 配下に `Image` とページ送りボタンを用意して `MashiroPageViewer` を追加します
-2. `Images` にページ画像の Sprite 配列を設定します（**1 枚以上必須**。空だと動作しません）
-3. ボタンの `OnClick` を API リファレンスの通り配線します
+- パッケージ: `MashiroTheater-Utils`（VPM `com.mashirotheater.utils`）
+- TextMeshPro（`pageText` が `TextMeshProUGUI` 型）
+- `MashiroPageViewer.prefab` は `_Common/Icons/arrow_left.png` / `_Common/Icons/arrow_right.png` を参照する。
 
-## Inspector フィールド
+## 仕様
 
-| フィールド | 既定値 | 内容 |
-|---|---|---|
-| `Display Image` | – | ページを表示するメインの `Image` |
-| `Additional Display Images` | – | 同じページを同時表示する追加の `Image` 配列（不要なら空） |
-| `Page Text` | – | ページ番号表示用 `TextMeshProUGUI`（不要なら None） |
-| `Images` | – | ページ画像の Sprite 配列（必須） |
-| `Fade Duration` | `1` 秒 | ページ切り替え時のフェード時間 |
-| `Use Global Sync` | `false` | ON でページ位置を全プレイヤー同期。OFF なら各自ローカル |
-| `Reverse Direction` | `false` | ページ送りの方向を反転（右綴じの縦書き台本など） |
-| `Scale Target` | – | 拡大・縮小の対象 Transform（未設定なら拡縮機能オフ） |
-| `Scale Step` | `0.1` | 1 回あたりの拡縮量 |
-| `Min / Max Scale Multiplier` | `0.5` / `2` | 拡縮の下限・上限（初期スケール比） |
-| `Horizontal Reset Target` | – | 水平化（傾きのリセット）の対象 Transform。**未設定ならこのコンポーネントが付いた GameObject 自身が対象** |
+### ページ送り
+
+- `images` が null または空のとき、`Start` で `Debug.LogError("No images assigned to MashiroPageViewer")` を出して初期化を中断する。
+- ページ番号は `images` の添字（0 始まり）で管理し、末尾の次は先頭、先頭の前は末尾へループする。
+- フェード中（フェードアウト・フェードイン）のページ送り操作は無視する。
+- ページ切り替えは、フェードアウト（`fadeDuration` 秒）→ Sprite 差し替え → フェードイン（`fadeDuration` 秒）の順に行う。切り替え全体の所要時間は `fadeDuration` の 2 倍。
+- フェードは各 `Image` の `color` のアルファを、`Start` 時点の色のアルファに 0〜1 を乗じた値で変化させる。
+- Sprite は `displayImage` と `additionalDisplayImages` の全要素（null を除く）に同じものを設定する。
+- `pageText` には `"{現在ページ + 1} / {images.Length}"` を表示する。更新は Sprite 差し替えのタイミングで行う。
+- `reverseDirection` が `true` のとき、`OnNextButtonPressed` と `OnPrevButtonPressed` の進む向きが入れ替わる。`OnPageAdvanceButtonPressed` は常に +1 ページ進む。
+
+### 同期
+
+- 同期モード: `BehaviourSyncMode.Manual`
+- 同期変数: `syncedIndex`（`int`、`[UdonSynced(UdonSyncMode.None)]`）
+- `useGlobalSync` が `true` のとき:
+  - ページ送り操作を行ったプレイヤーが `Networking.SetOwner` でオーナーになり、`syncedIndex` を更新して `RequestSerialization` する。
+  - 次ページの計算元は `syncedIndex`。
+  - `OnDeserialization` で `syncedIndex` が表示中のページと異なればフェードアウトを開始する。この処理はフェード中でも実行され、進行中のフェードを最初からやり直す。
+  - `Start` 時点の `syncedIndex` を初期ページにする。
+- `useGlobalSync` が `false` のとき、ページ位置はローカルのみで管理し、`OnDeserialization` は何もしない。
+- フェード、拡大・縮小、水平化は同期しない（実行したクライアントのみ）。
+
+### 拡大・縮小
+
+- `scaleTarget` 未設定のときは倍率のみ変化し、Transform は変更しない。
+- `Start` 時点の `scaleTarget.localScale` を基準スケールとし、`基準スケール × 倍率` を適用する。
+- 倍率の初期値は `Mathf.Clamp(1, minScaleMultiplier, maxScaleMultiplier)`。
+- 1 回の操作で倍率を `scaleStep` 増減し、`minScaleMultiplier`〜`maxScaleMultiplier` に制限する。
+- `scaleStep` が 0 以下のとき、拡大・縮小操作は何もしない。
+
+### 水平化
+
+- 対象は `horizontalResetTarget`。未設定ならこのコンポーネントが付いた GameObject の Transform。
+- 対象のワールド回転（`eulerAngles`）を `(0, 現在の Y, 0)` に設定する。位置は変更しない。
+
+## Inspector
+
+### MashiroPageViewer
+
+| フィールド | 型 | 既定値 | 必須 | 内容 |
+|---|---|---|---|---|
+| `displayImage` | `Image` | なし | – | ページを表示する `Image` |
+| `additionalDisplayImages` | `Image[]` | 空 | – | 同じページを同時に表示する追加の `Image` |
+| `pageText` | `TextMeshProUGUI` | なし | – | ページ番号の表示先。未設定なら表示しない |
+| `images` | `Sprite[]` | 空 | ○ | ページ画像。1 要素以上 |
+| `fadeDuration` | `float` | `1` | – | フェードアウト・フェードインそれぞれの秒数 |
+| `useGlobalSync` | `bool` | `false` | – | `true` でページ位置を全プレイヤー同期する |
+| `reverseDirection` | `bool` | `false` | – | `true` で `OnNextButtonPressed` / `OnPrevButtonPressed` の向きを反転する |
+| `scaleTarget` | `Transform` | なし | – | 拡大・縮小の対象 |
+| `scaleStep` | `float` | `0.1` | – | 1 回の拡大・縮小で増減する倍率 |
+| `minScaleMultiplier` | `float` | `0.5` | – | 倍率の下限 |
+| `maxScaleMultiplier` | `float` | `2` | – | 倍率の上限 |
+| `horizontalResetTarget` | `Transform` | なし | – | 水平化の対象。未設定ならこの GameObject 自身 |
 
 ## API リファレンス
 
 ### MashiroPageViewer
 
-すべて **UI の `Button.OnClick` から配線**して使います。
+#### UI へ手配線するもの
 
-| メソッド | 用途 |
-|---|---|
-| `OnNextButtonPressed` | 「→」ボタン用。`Reverse Direction` が OFF なら次のページへ、ON なら前のページへ（末尾と先頭はループ） |
-| `OnPrevButtonPressed` | 「←」ボタン用。`Reverse Direction` が OFF なら前のページへ、ON なら次のページへ |
-| `OnPageAdvanceButtonPressed` | `Reverse Direction` の設定に関係なく、常に次のページへ |
-| `OnZoomInButtonPressed` / `OnZoomOutButtonPressed` | 拡大 / 縮小 |
-| `OnHorizontalResetButtonPressed` | 対象 Transform を水平化する（X/Z 回転を 0 にし、Y 軸の向きと位置は維持） |
+| シグネチャ | 用途 | 呼び出し種別 |
+|---|---|---|
+| `void OnNextButtonPressed()` | `reverseDirection` が `false` なら +1、`true` なら −1 ページ送る | `Button.OnClick` から配線 |
+| `void OnPrevButtonPressed()` | `reverseDirection` が `false` なら −1、`true` なら +1 ページ送る | `Button.OnClick` から配線 |
+| `void OnPageAdvanceButtonPressed()` | `reverseDirection` に関係なく +1 ページ送る | `Button.OnClick` から配線 |
+| `void OnZoomInButtonPressed()` | 倍率を `scaleStep` 上げる | `Button.OnClick` から配線 |
+| `void OnZoomOutButtonPressed()` | 倍率を `scaleStep` 下げる | `Button.OnClick` から配線 |
+| `void OnHorizontalResetButtonPressed()` | 対象 Transform を水平化する | `Button.OnClick` から配線 |
 
-`OnNextButtonPressed` / `OnPrevButtonPressed` は **画面上の矢印の向き**に対応するメソッドです。右綴じの台本などで `Reverse Direction` を ON にすると、矢印ボタンの配線を変えずにページ送りの向きだけを反転できます。
+#### 内部連携用（配線不要）
 
-画像パネル全体をボタン化して「クリックで読み進める」ようにする場合など、押した位置と向きが対応しない配線先には `OnPageAdvanceButtonPressed` を使ってください。`Reverse Direction` の設定に左右されず、常にページ番号が増える方向へ進みます。
-
-`OnDeserialization` は同期用の内部処理です（配線不要）。
-
-## 同期の仕様
-
-- 同期方式は **Manual** に固定されています（スクリプト側で指定済みのため、Inspector での変更は不要です）
-- `Use Global Sync` が ON のとき、ページをめくったプレイヤーがオブジェクトのオーナーになり、ページ番号が全員に配信されます
-- OFF のときは完全ローカルで、各自が好きなページを閲覧できます（台本の個人閲覧向け）
-- フェード演出は各クライアントのローカル処理です
+| シグネチャ | 用途 | 呼び出し種別 |
+|---|---|---|
+| `override void OnDeserialization()` | 同期されたページ位置を反映する | VRChat コールバック（内部専用） |
 
 ## ライセンス
 
-このフォルダの内容は MIT License で提供します（リポジトリルートの `LICENSE.md` を参照）。
+MIT License（リポジトリルートの `LICENSE.md`）。
 
 ---
 

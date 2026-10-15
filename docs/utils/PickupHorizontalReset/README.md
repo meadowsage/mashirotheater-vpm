@@ -1,58 +1,57 @@
-# MashiroPickupHorizontalReset
+# Mashiro Pickup Horizontal Reset
 
-`MashiroPickupHorizontalReset` は、Pickup オブジェクトを **ドロップした瞬間に水平化**（傾きを取り除く）する単独コンポーネントです。`MashiroPageViewer` の `OnHorizontalResetButtonPressed` と同じ「水平リセット」機能を、Pickup 1 つに付けるだけで使えるよう切り出したものです。
+Pickup のドロップ時に、付与した GameObject のワールド回転の X/Z を 0 にする UdonSharp コンポーネント（`MashiroPickupHorizontalReset`）。
 
-## 主な機能
+## 構成
 
-- 付与した GameObject 自身の **X/Z 軸の回転を 0** にし、**Y 軸（向き）は維持**する
-- VRC_Pickup の `OnDrop` をフックし、オブジェクトを離した瞬間に自動で水平化する
-- 既定では **ドロップしたプレイヤーがデスクトップモードのとき** のみ発火する（VR プレイヤーが落としたときは何もしない）
-- 外部の Udon や UI ボタンからも `ResetHorizontal` イベントで手動発火できる
+| ファイル | 内容 |
+|---|---|
+| `MashiroPickupHorizontalReset.cs` | 本体スクリプト（`MashiroPickupHorizontalReset`） |
+| `MashiroPickupHorizontalReset.asset` | `MashiroPickupHorizontalReset` の UdonSharp ProgramAsset |
 
-## ユースケース
+## 依存
 
-- デスクトップユーザーが台本やパンフレットなどの Pickup を雑に置いても、自動で水平に整う
-- VR ユーザーは自分の手の角度どおりに置けるよう、既定ではデスクトップ時のみに限定
+- パッケージ: `MashiroTheater-Utils`（VPM `com.mashirotheater.utils`）
+- `VRC_Pickup`: 同じ GameObject に付いている場合に `OnDrop` を受け取る。
 
-## 配置手順
+## 仕様
 
-1. 水平化したい **VRC_Pickup が付いた GameObject** に `MashiroPickupHorizontalReset`（UdonSharp）を追加する
-   - `OnDrop` を受け取るため、また付与した GameObject 自身を水平化するため、VRC_Pickup と**同じ GameObject** に付ける必要があります
-2. VR プレイヤーがドロップしたときも水平化したい場合は `Desktop Mode Only` のチェックを外す
+- 水平化の対象は、このコンポーネントが付いた GameObject の Transform に固定。
+- 水平化は、ワールド回転（`transform.eulerAngles`）を `(0, 現在の Y, 0)` に設定する。位置は変更しない。
+- `OnDrop` で水平化する。
+- `desktopModeOnly` が `true` のとき、`OnDrop` を受け取ったクライアントのローカルプレイヤーが VR（`IsUserInVR()` が `true`）、または `Networking.LocalPlayer` が null なら何もしない。
+- `ResetHorizontal` は `desktopModeOnly` を判定せずに水平化する。
+- `[UdonBehaviourSyncMode]` は指定していない。
+- 同期変数を持たない。
+- Transform の変更は実行したクライアントのみで行う。
 
-## インスペクタ項目
+## Inspector
 
-| パラメータ | 既定値 | 説明 |
-|---|---|---|
-| Desktop Mode Only | true | true のとき、ドロップしたプレイヤーがデスクトップモードの場合のみ自動発火する |
+### MashiroPickupHorizontalReset
+
+| フィールド | 型 | 既定値 | 必須 | 内容 |
+|---|---|---|---|---|
+| `desktopModeOnly` | `bool` | `true` | – | `true` のとき、`OnDrop` での水平化をデスクトップモードのプレイヤーに限定する |
 
 ## API リファレンス
 
 ### MashiroPickupHorizontalReset
 
-別の Udon や UI ボタンから手動で水平化したい場合は、以下を `SendCustomEvent` で呼び出せます。
+#### UI へ手配線するもの
 
-| メソッド | 動作 | 呼び出し種別 |
+| シグネチャ | 用途 | 呼び出し種別 |
 |---|---|---|
-| `OnDrop` | ドロップ時の自動水平化 | VRChat イベント（配線不要） |
-| `ResetHorizontal` | この GameObject を即座に水平化する（`Desktop Mode Only` の判定は経由しない） | 他の Udon・UI から `SendCustomEvent` で呼ぶ |
+| `void ResetHorizontal()` | この GameObject を水平化する | `Button.OnClick` から `SendCustomEvent("ResetHorizontal")` で配線 / 他の Udon から `SendCustomEvent` |
 
-## 同期設計
+#### 内部連携用（配線不要）
 
-- 同期変数を持たない（Udon 変数の同期は行わない）
-- 水平化は `OnDrop` を受け取ったクライアント（= そのとき Pickup のオーナー）でのみ実行する
-- 他プレイヤーから見た回転は VRChat 標準の VRC_Pickup の Transform 同期に任せる
+| シグネチャ | 用途 | 呼び出し種別 |
+|---|---|---|
+| `override void OnDrop()` | `desktopModeOnly` の条件を満たせば水平化する | VRChat コールバック（内部専用） |
 
-## 制約
+## ライセンス
 
-- VRC_Pickup と同じ GameObject に付けないと `OnDrop` が呼ばれず自動発火しない
-- 水平化対象は付与した GameObject 自身に固定（子オブジェクトや別 Transform は対象にできない）
-- ワールド回転の X/Z を 0 にするため、親が傾いている場合でも結果はワールド水平になる
-
-## 同梱ファイル
-
-- `MashiroPickupHorizontalReset.cs` メインスクリプト
-- `README.md` 本マニュアル
+MIT License（リポジトリルートの `LICENSE.md`）。
 
 ---
 

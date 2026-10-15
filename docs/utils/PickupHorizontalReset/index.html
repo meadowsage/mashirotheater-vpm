@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MashiroPickupHorizontalReset — Mashiro Small Theater</title>
+<title>Mashiro Pickup Horizontal Reset — Mashiro Small Theater</title>
 <style>
   :root {
     color-scheme: light dark;
@@ -35,89 +35,105 @@
 </style>
 </head>
 <body>
-<nav><a href="../../">マニュアル</a> / <a href="../">Mashiro Theater Utils</a></nav>
+<nav><a href="../../">リファレンス</a> / <a href="../">Mashiro Theater Utils</a></nav>
 <main>
-<h1 id="mashiropickuphorizontalreset">MashiroPickupHorizontalReset</h1>
-<p><code>MashiroPickupHorizontalReset</code> は、Pickup オブジェクトを <strong>ドロップした瞬間に水平化</strong>（傾きを取り除く）する単独コンポーネントです。<code>MashiroPageViewer</code> の <code>OnHorizontalResetButtonPressed</code> と同じ「水平リセット」機能を、Pickup 1 つに付けるだけで使えるよう切り出したものです。</p>
-<h2 id="主な機能">主な機能</h2>
-<ul>
-<li>付与した GameObject 自身の <strong>X/Z 軸の回転を 0</strong> にし、<strong>Y 軸（向き）は維持</strong>する</li>
-<li>VRC_Pickup の <code>OnDrop</code> をフックし、オブジェクトを離した瞬間に自動で水平化する</li>
-<li>既定では <strong>ドロップしたプレイヤーがデスクトップモードのとき</strong> のみ発火する（VR プレイヤーが落としたときは何もしない）</li>
-<li>外部の Udon や UI ボタンからも <code>ResetHorizontal</code> イベントで手動発火できる</li>
-</ul>
-<h2 id="ユースケース">ユースケース</h2>
-<ul>
-<li>デスクトップユーザーが台本やパンフレットなどの Pickup を雑に置いても、自動で水平に整う</li>
-<li>VR ユーザーは自分の手の角度どおりに置けるよう、既定ではデスクトップ時のみに限定</li>
-</ul>
-<h2 id="配置手順">配置手順</h2>
-<ol>
-<li>水平化したい <strong>VRC_Pickup が付いた GameObject</strong> に <code>MashiroPickupHorizontalReset</code>（UdonSharp）を追加する
-<ul>
-<li><code>OnDrop</code> を受け取るため、また付与した GameObject 自身を水平化するため、VRC_Pickup と<strong>同じ GameObject</strong> に付ける必要があります</li>
-</ul>
-</li>
-<li>VR プレイヤーがドロップしたときも水平化したい場合は <code>Desktop Mode Only</code> のチェックを外す</li>
-</ol>
-<h2 id="インスペクタ項目">インスペクタ項目</h2>
+<h1 id="mashiro-pickup-horizontal-reset">Mashiro Pickup Horizontal Reset</h1>
+<p>Pickup のドロップ時に、付与した GameObject のワールド回転の X/Z を 0 にする UdonSharp コンポーネント（<code>MashiroPickupHorizontalReset</code>）。</p>
+<h2 id="構成">構成</h2>
 <table>
 <thead>
 <tr>
-<th>パラメータ</th>
-<th>既定値</th>
-<th>説明</th>
+<th>ファイル</th>
+<th>内容</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Desktop Mode Only</td>
-<td>true</td>
-<td>true のとき、ドロップしたプレイヤーがデスクトップモードの場合のみ自動発火する</td>
+<td><code>MashiroPickupHorizontalReset.cs</code></td>
+<td>本体スクリプト（<code>MashiroPickupHorizontalReset</code>）</td>
+</tr>
+<tr>
+<td><code>MashiroPickupHorizontalReset.asset</code></td>
+<td><code>MashiroPickupHorizontalReset</code> の UdonSharp ProgramAsset</td>
+</tr>
+</tbody>
+</table>
+<h2 id="依存">依存</h2>
+<ul>
+<li>パッケージ: <code>MashiroTheater-Utils</code>（VPM <code>com.mashirotheater.utils</code>）</li>
+<li><code>VRC_Pickup</code>: 同じ GameObject に付いている場合に <code>OnDrop</code> を受け取る。</li>
+</ul>
+<h2 id="仕様">仕様</h2>
+<ul>
+<li>水平化の対象は、このコンポーネントが付いた GameObject の Transform に固定。</li>
+<li>水平化は、ワールド回転（<code>transform.eulerAngles</code>）を <code>(0, 現在の Y, 0)</code> に設定する。位置は変更しない。</li>
+<li><code>OnDrop</code> で水平化する。</li>
+<li><code>desktopModeOnly</code> が <code>true</code> のとき、<code>OnDrop</code> を受け取ったクライアントのローカルプレイヤーが VR（<code>IsUserInVR()</code> が <code>true</code>）、または <code>Networking.LocalPlayer</code> が null なら何もしない。</li>
+<li><code>ResetHorizontal</code> は <code>desktopModeOnly</code> を判定せずに水平化する。</li>
+<li><code>[UdonBehaviourSyncMode]</code> は指定していない。</li>
+<li>同期変数を持たない。</li>
+<li>Transform の変更は実行したクライアントのみで行う。</li>
+</ul>
+<h2 id="inspector">Inspector</h2>
+<h3 id="mashiropickuphorizontalreset">MashiroPickupHorizontalReset</h3>
+<table>
+<thead>
+<tr>
+<th>フィールド</th>
+<th>型</th>
+<th>既定値</th>
+<th>必須</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>desktopModeOnly</code></td>
+<td><code>bool</code></td>
+<td><code>true</code></td>
+<td>–</td>
+<td><code>true</code> のとき、<code>OnDrop</code> での水平化をデスクトップモードのプレイヤーに限定する</td>
 </tr>
 </tbody>
 </table>
 <h2 id="api-リファレンス">API リファレンス</h2>
 <h3 id="mashiropickuphorizontalreset-1">MashiroPickupHorizontalReset</h3>
-<p>別の Udon や UI ボタンから手動で水平化したい場合は、以下を <code>SendCustomEvent</code> で呼び出せます。</p>
+<h4 id="ui-へ手配線するもの">UI へ手配線するもの</h4>
 <table>
 <thead>
 <tr>
-<th>メソッド</th>
-<th>動作</th>
+<th>シグネチャ</th>
+<th>用途</th>
 <th>呼び出し種別</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>OnDrop</code></td>
-<td>ドロップ時の自動水平化</td>
-<td>VRChat イベント（配線不要）</td>
-</tr>
-<tr>
-<td><code>ResetHorizontal</code></td>
-<td>この GameObject を即座に水平化する（<code>Desktop Mode Only</code> の判定は経由しない）</td>
-<td>他の Udon・UI から <code>SendCustomEvent</code> で呼ぶ</td>
+<td><code>void ResetHorizontal()</code></td>
+<td>この GameObject を水平化する</td>
+<td><code>Button.OnClick</code> から <code>SendCustomEvent(&quot;ResetHorizontal&quot;)</code> で配線 / 他の Udon から <code>SendCustomEvent</code></td>
 </tr>
 </tbody>
 </table>
-<h2 id="同期設計">同期設計</h2>
-<ul>
-<li>同期変数を持たない（Udon 変数の同期は行わない）</li>
-<li>水平化は <code>OnDrop</code> を受け取ったクライアント（= そのとき Pickup のオーナー）でのみ実行する</li>
-<li>他プレイヤーから見た回転は VRChat 標準の VRC_Pickup の Transform 同期に任せる</li>
-</ul>
-<h2 id="制約">制約</h2>
-<ul>
-<li>VRC_Pickup と同じ GameObject に付けないと <code>OnDrop</code> が呼ばれず自動発火しない</li>
-<li>水平化対象は付与した GameObject 自身に固定（子オブジェクトや別 Transform は対象にできない）</li>
-<li>ワールド回転の X/Z を 0 にするため、親が傾いている場合でも結果はワールド水平になる</li>
-</ul>
-<h2 id="同梱ファイル">同梱ファイル</h2>
-<ul>
-<li><code>MashiroPickupHorizontalReset.cs</code> メインスクリプト</li>
-<li><code>README.md</code> 本マニュアル</li>
-</ul>
+<h4 id="内部連携用配線不要">内部連携用（配線不要）</h4>
+<table>
+<thead>
+<tr>
+<th>シグネチャ</th>
+<th>用途</th>
+<th>呼び出し種別</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>override void OnDrop()</code></td>
+<td><code>desktopModeOnly</code> の条件を満たせば水平化する</td>
+<td>VRChat コールバック（内部専用）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ライセンス">ライセンス</h2>
+<p>MIT License（リポジトリルートの <code>LICENSE.md</code>）。</p>
 <hr />
 <p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
 <ul>
@@ -127,6 +143,6 @@
 </ul>
 
 </main>
-<footer>main@2698a7a 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
+<footer>v0.2.0 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
 </body>
 </html>

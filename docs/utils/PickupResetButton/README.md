@@ -1,71 +1,75 @@
 # Mashiro Pickup Reset Button
 
-指定したルート直下にある **`VRC_Pickup` 付きオブジェクト**を、**ボタン 1 つでまとめて初期配置へ戻す**ギミックです。`VRCObjectSync`（位置同期）が付いていない Pickup も対象になります。ボタンは **誰でも押せます**。
+指定ルートの直下にある `VRC_Pickup` 付きオブジェクトを、Interact で一括して初期配置へ戻す UdonSharp コンポーネント（`MashiroPickupResetButton`）。
 
-## できること
+## 構成
 
-- ルート直下にある Pickup を、ボタン 1 つでまとめて初期配置へリセットする。
-- リセット先は「ワールド開始時の位置・姿勢」で固定。途中で動かしてもリセット先は変わらない。
-- リセットの伝播範囲は、そのオブジェクトの同期方式に従う（`VRCObjectSync` あり = 全員、なし = 押した人のみ）。
+| ファイル | 内容 |
+|---|---|
+| `MashiroPickupResetButton.cs` | 本体スクリプト（`MashiroTheater.MashiroPickupResetButton`） |
+| `MashiroPickupResetButton.asset` | `MashiroPickupResetButton` の UdonSharp ProgramAsset |
 
-## 対象になるオブジェクト
+## 依存
 
-- `Target Root`（未設定ならこのコンポーネントが付いた GameObject 自身）の **直下の子オブジェクト**のうち、`VRC_Pickup` が付いているものすべて。
-- **孫以降は対象外**です（直下の子のみ）。
-- `VRCObjectSync` の有無は問いません。有無によって戻し方が変わります（[同期の挙動](#同期の挙動)を参照）。
+- パッケージ: `MashiroTheater-Utils`（VPM `com.mashirotheater.utils`）
+- 対象オブジェクトの `VRC_Pickup`（必須）、`VRCObjectSync`（任意）、`Rigidbody`（任意）
 
-## セットアップ
+## 仕様
 
-1. リセットの起点となる **ボタン用 GameObject** にこのコンポーネントを追加します。
-   - メニュー: `Add Component > MashiroTheater > Mashiro Pickup Reset Button`
-   - ボタンとして押せるように、`Collider` を付けて Udon の `Interaction`（Interactive）が有効になるようにしてください。インタラクト文言（Interaction Text）は任意で設定できます。
-2. `Target Root` に、リセット対象を**直下に持つ親 Transform** を割り当てます。
-   - 未設定の場合はこのコンポーネント自身の Transform が使われます。対象をボタンと同じ階層にぶら下げる構成なら未設定でも動きます。
-3. 対象の各小道具に `VRC_Pickup` が付いていることを確認します。`VRCObjectSync` は付いていても付いていなくても構いません。
+### 対象
 
-## インスペクタ項目
+- `targetRoot`（未設定ならこの GameObject の Transform）の直下の子のうち、子自身に `VRC_Pickup` が付いているもの。孫以降は対象外。
+- 対象は `Start` で確定する。`Start` 以降に追加した子は対象にならない。
+- 子自身に `VRCObjectSync` が付いているかで、リセット方法が分かれる。
 
-| 項目 | 説明 |
-|------|------|
-| Target Root | この Transform の直下（子のみ）にある `VRC_Pickup` 付きオブジェクトが対象。未設定ならこの GameObject 自身を使う |
+### リセット方法
 
-## 同期の挙動
+| 対象 | 処理 | 反映範囲 |
+|---|---|---|
+| `VRCObjectSync` あり | オーナーでなければ `Networking.SetOwner` でオーナーになり、`VRCObjectSync.Respawn()` を呼ぶ | `VRCObjectSync` の同期に従う |
+| `VRCObjectSync` なし | `Start` 時点の `localPosition` / `localRotation` へ戻す | 実行したクライアントのみ |
 
-**リセットの伝播範囲は、そのオブジェクトの同期方式に従います。**
+- `VRCObjectSync` ありの対象の戻り先は `VRCObjectSync` が保持するスポーン位置。
+- `VRCObjectSync` なしの対象は、戻す前に次を行う。
+  - `VRC_Pickup.IsHeld` が `true` なら `Drop()` する。
+  - 同じ GameObject の `Rigidbody` が非キネマティックなら、`velocity` と `angularVelocity` を 0 にする。
+- 戻し先はローカル座標で保持するため、`targetRoot` の移動・回転に追従する。
 
-| 対象 | 戻し方 | 誰の視界で戻るか |
-| --- | --- | --- |
-| `VRCObjectSync` あり | 所有権を取得して `Respawn()` | **全プレイヤー** |
-| `VRCObjectSync` なし | 控えておいた配置へ戻す | **押した人のみ** |
+### 同期・権限
 
-### VRCObjectSync あり
+- 同期モード: `BehaviourSyncMode.NoVariableSync`
+- 同期変数を持たない。
+- `Interact` を実行できるプレイヤーの制限はない。
 
-- リセット先は**スポーン時（＝インスタンス開始時）の配置**で、VRCObjectSync 側が保持・固定しています。
-- 所有者の `Respawn()` は全クライアントへ伝播するため、全員の視界でリセットされます。
+## Inspector
 
-### VRCObjectSync なし（位置が同期されない Pickup）
+### MashiroPickupResetButton
 
-- `Respawn()` が使えないため、**ワールド開始時（`Start`）の位置・姿勢をこのギミックが控えておき**、そこへ戻します。
-- 位置が同期されない Pickup は、動かしても**その人の視界でしか動いていません**。そのためリセットも押した人のローカルだけで完結します（他の人の視界には戻すべきずれがありません）。
-- 戻す前に、持たれていれば手から離し、Rigidbody の速度を 0 にします（勢いが残っていると戻した先からまた動き出すため）。
-- 位置は親から見た相対位置（ローカル座標）で記録します。`Target Root` ごと動かす構成でも、相対的な配置が保たれます。
+Add Component メニュー: `MashiroTheater/Mashiro Pickup Reset Button`
 
-このコンポーネント自体は同期変数を持たず、ネットワーク通信も行いません（`NoVariableSync`）。
+| フィールド | 型 | 既定値 | 必須 | 内容 |
+|---|---|---|---|---|
+| `targetRoot` | `Transform` | なし | – | 直下の子をリセット対象にする Transform。未設定ならこの GameObject 自身 |
 
 ## API リファレンス
 
 ### MashiroPickupResetButton
 
-| メソッド | 用途 | 呼び出し種別 |
+#### UI へ手配線するもの
+
+| シグネチャ | 用途 | 呼び出し種別 |
 |---|---|---|
-| `Interact()` | 全対象を初期配置へリセット | オブジェクトへの Interact（配線不要） |
-| `ResetAll()` | 同上 | UI Button や他の Udon から `SendCustomEvent("ResetAll")` で呼ぶ |
+| `void ResetAll()` | 全対象をリセットする | `Button.OnClick` から `SendCustomEvent("ResetAll")` で配線 / 他の Udon から `SendCustomEvent` |
 
-## 注意点
+#### 内部連携用（配線不要）
 
-- 対象は**ワールドにあらかじめ配置されている**オブジェクトを想定しています（実行時に生成・複製されるオブジェクトには非対応）。
-- 誰かが掴んでいる最中のオブジェクトもリセット対象になります。同期なしの Pickup は手から離してから戻します。同期ありの場合、掴み中の挙動は VRChat の Pickup / ObjectSync の仕様に従います。
-- 同期なし Pickup は、**他の人の視界を片付けることはできません**。各プレイヤーが自分で押す必要があります。公演前に一括で片付けたい小道具には `VRCObjectSync` を付けてください。
+| シグネチャ | 用途 | 呼び出し種別 |
+|---|---|---|
+| `override void Interact()` | `ResetAll()` を呼ぶ | VRChat コールバック（内部専用） |
+
+## ライセンス
+
+MIT License（リポジトリルートの `LICENSE.md`）。
 
 ---
 

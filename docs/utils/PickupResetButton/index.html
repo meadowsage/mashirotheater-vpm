@@ -35,117 +35,140 @@
 </style>
 </head>
 <body>
-<nav><a href="../../">マニュアル</a> / <a href="../">Mashiro Theater Utils</a></nav>
+<nav><a href="../../">リファレンス</a> / <a href="../">Mashiro Theater Utils</a></nav>
 <main>
 <h1 id="mashiro-pickup-reset-button">Mashiro Pickup Reset Button</h1>
-<p>指定したルート直下にある <strong><code>VRC_Pickup</code> 付きオブジェクト</strong>を、<strong>ボタン 1 つでまとめて初期配置へ戻す</strong>ギミックです。<code>VRCObjectSync</code>（位置同期）が付いていない Pickup も対象になります。ボタンは <strong>誰でも押せます</strong>。</p>
-<h2 id="できること">できること</h2>
-<ul>
-<li>ルート直下にある Pickup を、ボタン 1 つでまとめて初期配置へリセットする。</li>
-<li>リセット先は「ワールド開始時の位置・姿勢」で固定。途中で動かしてもリセット先は変わらない。</li>
-<li>リセットの伝播範囲は、そのオブジェクトの同期方式に従う（<code>VRCObjectSync</code> あり = 全員、なし = 押した人のみ）。</li>
-</ul>
-<h2 id="対象になるオブジェクト">対象になるオブジェクト</h2>
-<ul>
-<li><code>Target Root</code>（未設定ならこのコンポーネントが付いた GameObject 自身）の <strong>直下の子オブジェクト</strong>のうち、<code>VRC_Pickup</code> が付いているものすべて。</li>
-<li><strong>孫以降は対象外</strong>です（直下の子のみ）。</li>
-<li><code>VRCObjectSync</code> の有無は問いません。有無によって戻し方が変わります（<a href="#%E5%90%8C%E6%9C%9F%E3%81%AE%E6%8C%99%E5%8B%95">同期の挙動</a>を参照）。</li>
-</ul>
-<h2 id="セットアップ">セットアップ</h2>
-<ol>
-<li>リセットの起点となる <strong>ボタン用 GameObject</strong> にこのコンポーネントを追加します。
-<ul>
-<li>メニュー: <code>Add Component &gt; MashiroTheater &gt; Mashiro Pickup Reset Button</code></li>
-<li>ボタンとして押せるように、<code>Collider</code> を付けて Udon の <code>Interaction</code>（Interactive）が有効になるようにしてください。インタラクト文言（Interaction Text）は任意で設定できます。</li>
-</ul>
-</li>
-<li><code>Target Root</code> に、リセット対象を<strong>直下に持つ親 Transform</strong> を割り当てます。
-<ul>
-<li>未設定の場合はこのコンポーネント自身の Transform が使われます。対象をボタンと同じ階層にぶら下げる構成なら未設定でも動きます。</li>
-</ul>
-</li>
-<li>対象の各小道具に <code>VRC_Pickup</code> が付いていることを確認します。<code>VRCObjectSync</code> は付いていても付いていなくても構いません。</li>
-</ol>
-<h2 id="インスペクタ項目">インスペクタ項目</h2>
+<p>指定ルートの直下にある <code>VRC_Pickup</code> 付きオブジェクトを、Interact で一括して初期配置へ戻す UdonSharp コンポーネント（<code>MashiroPickupResetButton</code>）。</p>
+<h2 id="構成">構成</h2>
 <table>
 <thead>
 <tr>
-<th>項目</th>
-<th>説明</th>
+<th>ファイル</th>
+<th>内容</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Target Root</td>
-<td>この Transform の直下（子のみ）にある <code>VRC_Pickup</code> 付きオブジェクトが対象。未設定ならこの GameObject 自身を使う</td>
+<td><code>MashiroPickupResetButton.cs</code></td>
+<td>本体スクリプト（<code>MashiroTheater.MashiroPickupResetButton</code>）</td>
+</tr>
+<tr>
+<td><code>MashiroPickupResetButton.asset</code></td>
+<td><code>MashiroPickupResetButton</code> の UdonSharp ProgramAsset</td>
 </tr>
 </tbody>
 </table>
-<h2 id="同期の挙動">同期の挙動</h2>
-<p><strong>リセットの伝播範囲は、そのオブジェクトの同期方式に従います。</strong></p>
+<h2 id="依存">依存</h2>
+<ul>
+<li>パッケージ: <code>MashiroTheater-Utils</code>（VPM <code>com.mashirotheater.utils</code>）</li>
+<li>対象オブジェクトの <code>VRC_Pickup</code>（必須）、<code>VRCObjectSync</code>（任意）、<code>Rigidbody</code>（任意）</li>
+</ul>
+<h2 id="仕様">仕様</h2>
+<h3 id="対象">対象</h3>
+<ul>
+<li><code>targetRoot</code>（未設定ならこの GameObject の Transform）の直下の子のうち、子自身に <code>VRC_Pickup</code> が付いているもの。孫以降は対象外。</li>
+<li>対象は <code>Start</code> で確定する。<code>Start</code> 以降に追加した子は対象にならない。</li>
+<li>子自身に <code>VRCObjectSync</code> が付いているかで、リセット方法が分かれる。</li>
+</ul>
+<h3 id="リセット方法">リセット方法</h3>
 <table>
 <thead>
 <tr>
 <th>対象</th>
-<th>戻し方</th>
-<th>誰の視界で戻るか</th>
+<th>処理</th>
+<th>反映範囲</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>VRCObjectSync</code> あり</td>
-<td>所有権を取得して <code>Respawn()</code></td>
-<td><strong>全プレイヤー</strong></td>
+<td>オーナーでなければ <code>Networking.SetOwner</code> でオーナーになり、<code>VRCObjectSync.Respawn()</code> を呼ぶ</td>
+<td><code>VRCObjectSync</code> の同期に従う</td>
 </tr>
 <tr>
 <td><code>VRCObjectSync</code> なし</td>
-<td>控えておいた配置へ戻す</td>
-<td><strong>押した人のみ</strong></td>
+<td><code>Start</code> 時点の <code>localPosition</code> / <code>localRotation</code> へ戻す</td>
+<td>実行したクライアントのみ</td>
 </tr>
 </tbody>
 </table>
-<h3 id="vrcobjectsync-あり">VRCObjectSync あり</h3>
 <ul>
-<li>リセット先は<strong>スポーン時（＝インスタンス開始時）の配置</strong>で、VRCObjectSync 側が保持・固定しています。</li>
-<li>所有者の <code>Respawn()</code> は全クライアントへ伝播するため、全員の視界でリセットされます。</li>
-</ul>
-<h3 id="vrcobjectsync-なし位置が同期されない-pickup">VRCObjectSync なし（位置が同期されない Pickup）</h3>
+<li><code>VRCObjectSync</code> ありの対象の戻り先は <code>VRCObjectSync</code> が保持するスポーン位置。</li>
+<li><code>VRCObjectSync</code> なしの対象は、戻す前に次を行う。
 <ul>
-<li><code>Respawn()</code> が使えないため、<strong>ワールド開始時（<code>Start</code>）の位置・姿勢をこのギミックが控えておき</strong>、そこへ戻します。</li>
-<li>位置が同期されない Pickup は、動かしても<strong>その人の視界でしか動いていません</strong>。そのためリセットも押した人のローカルだけで完結します（他の人の視界には戻すべきずれがありません）。</li>
-<li>戻す前に、持たれていれば手から離し、Rigidbody の速度を 0 にします（勢いが残っていると戻した先からまた動き出すため）。</li>
-<li>位置は親から見た相対位置（ローカル座標）で記録します。<code>Target Root</code> ごと動かす構成でも、相対的な配置が保たれます。</li>
+<li><code>VRC_Pickup.IsHeld</code> が <code>true</code> なら <code>Drop()</code> する。</li>
+<li>同じ GameObject の <code>Rigidbody</code> が非キネマティックなら、<code>velocity</code> と <code>angularVelocity</code> を 0 にする。</li>
 </ul>
-<p>このコンポーネント自体は同期変数を持たず、ネットワーク通信も行いません（<code>NoVariableSync</code>）。</p>
-<h2 id="api-リファレンス">API リファレンス</h2>
+</li>
+<li>戻し先はローカル座標で保持するため、<code>targetRoot</code> の移動・回転に追従する。</li>
+</ul>
+<h3 id="同期権限">同期・権限</h3>
+<ul>
+<li>同期モード: <code>BehaviourSyncMode.NoVariableSync</code></li>
+<li>同期変数を持たない。</li>
+<li><code>Interact</code> を実行できるプレイヤーの制限はない。</li>
+</ul>
+<h2 id="inspector">Inspector</h2>
 <h3 id="mashiropickupresetbutton">MashiroPickupResetButton</h3>
+<p>Add Component メニュー: <code>MashiroTheater/Mashiro Pickup Reset Button</code></p>
 <table>
 <thead>
 <tr>
-<th>メソッド</th>
+<th>フィールド</th>
+<th>型</th>
+<th>既定値</th>
+<th>必須</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>targetRoot</code></td>
+<td><code>Transform</code></td>
+<td>なし</td>
+<td>–</td>
+<td>直下の子をリセット対象にする Transform。未設定ならこの GameObject 自身</td>
+</tr>
+</tbody>
+</table>
+<h2 id="api-リファレンス">API リファレンス</h2>
+<h3 id="mashiropickupresetbutton-1">MashiroPickupResetButton</h3>
+<h4 id="ui-へ手配線するもの">UI へ手配線するもの</h4>
+<table>
+<thead>
+<tr>
+<th>シグネチャ</th>
 <th>用途</th>
 <th>呼び出し種別</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>Interact()</code></td>
-<td>全対象を初期配置へリセット</td>
-<td>オブジェクトへの Interact（配線不要）</td>
-</tr>
-<tr>
-<td><code>ResetAll()</code></td>
-<td>同上</td>
-<td>UI Button や他の Udon から <code>SendCustomEvent(&quot;ResetAll&quot;)</code> で呼ぶ</td>
+<td><code>void ResetAll()</code></td>
+<td>全対象をリセットする</td>
+<td><code>Button.OnClick</code> から <code>SendCustomEvent(&quot;ResetAll&quot;)</code> で配線 / 他の Udon から <code>SendCustomEvent</code></td>
 </tr>
 </tbody>
 </table>
-<h2 id="注意点">注意点</h2>
-<ul>
-<li>対象は<strong>ワールドにあらかじめ配置されている</strong>オブジェクトを想定しています（実行時に生成・複製されるオブジェクトには非対応）。</li>
-<li>誰かが掴んでいる最中のオブジェクトもリセット対象になります。同期なしの Pickup は手から離してから戻します。同期ありの場合、掴み中の挙動は VRChat の Pickup / ObjectSync の仕様に従います。</li>
-<li>同期なし Pickup は、<strong>他の人の視界を片付けることはできません</strong>。各プレイヤーが自分で押す必要があります。公演前に一括で片付けたい小道具には <code>VRCObjectSync</code> を付けてください。</li>
-</ul>
+<h4 id="内部連携用配線不要">内部連携用（配線不要）</h4>
+<table>
+<thead>
+<tr>
+<th>シグネチャ</th>
+<th>用途</th>
+<th>呼び出し種別</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>override void Interact()</code></td>
+<td><code>ResetAll()</code> を呼ぶ</td>
+<td>VRChat コールバック（内部専用）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ライセンス">ライセンス</h2>
+<p>MIT License（リポジトリルートの <code>LICENSE.md</code>）。</p>
 <hr />
 <p>本ドキュメントは AI を用いて作成しています。不明点・記載の誤りなどありましたら、下記までお問い合わせください。</p>
 <ul>
@@ -155,6 +178,6 @@
 </ul>
 
 </main>
-<footer>main@2698a7a 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
+<footer>v0.2.0 時点の内容です。 · <a href="../../../">Mashiro Small Theater VPM</a></footer>
 </body>
 </html>

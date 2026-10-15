@@ -1,59 +1,76 @@
 # MashiroLocalAreaActivator
 
-指定したエリア内にローカルプレイヤーが居る間だけ、対象 GameObject を有効化するスイッチです。
-**ローカル動作専用**（同期なし）で、プレイヤーごとに独立して内外判定が行われます。
+ローカルプレイヤーが指定 Collider の内部にいる間だけ、対象 GameObject を有効化するコンポーネント。内外判定はポーリングで行い、状態は同期しない。
 
-## 特徴
+## 構成
 
-- **OnPlayerTriggerEnter / Exit に依存しない**: ポーリング方式で内外を直接判定するため、テレポート・リスポーン・物理ジャンプ・コライダーレイヤー設定ミスなどによる「入退場イベントの取りこぼし」が原理的に起きません。
-- **Collider を再利用**: エリア定義に既存の `Collider` をそのまま流用できます。回転・スケールに追従します。
-- **複数ターゲット**: 1 つのエリアで複数 GameObject を同時に ON/OFF できます。
-- **軽量**: 状態が変化した瞬間のみ `SetActive` を呼びます（毎フレーム呼び続けない）。判定間隔も調整可。
+| ファイル | 役割 |
+| --- | --- |
+| `MashiroLocalAreaActivator.cs` | 内外判定と対象 GameObject の `SetActive` |
+| `MashiroLocalAreaActivator.asset` | `MashiroLocalAreaActivator` の UdonSharp ProgramAsset |
 
-## 使い方
+## 依存
 
-1. 任意の GameObject に `MashiroLocalAreaActivator` を追加。
-2. インスペクタで以下を設定：
-   - **Area**: エリア判定に使う `Collider`（Is Trigger 推奨）
-   - **Targets**: エリア内で有効化したい GameObject の配列
-   - **Invert**: チェックするとエリア「外」で有効になります
-   - **Poll Interval**: 判定間隔（秒）。デフォルト `0.1`（10Hz）
+- パッケージ: `MashiroTheater-Utils`（VPM `com.mashirotheater.utils`）
+- エリア定義に `Collider`（Box / Sphere / Capsule / Convex MeshCollider）が必要。
 
-## パラメータ詳細
+## 仕様
 
-| 項目 | 説明 | 推奨値 |
-| --- | --- | --- |
-| Area | エリア定義に使う Collider。Box / Sphere / Capsule / Convex MeshCollider に対応 | BoxCollider (Is Trigger) |
-| Targets | 有効化対象の GameObject 配列。null 要素は無視 | 任意 |
-| Invert | true でエリア外時に有効化 | false |
-| Poll Interval | 判定間隔(秒)。0 以下で毎フレーム判定 | 0.1（体感差ほぼ無し） |
+### 内外判定
 
-## 動作仕様
+- 判定点は `Networking.LocalPlayer.GetPosition()`（ローカルプレイヤーの足元位置）。
+- `area.ClosestPoint(判定点)` と判定点の距離の 2 乗が `1e-6` 以下（距離 1 mm 以下）のとき「内」とする。
+- `OnPlayerTriggerEnter` / `OnPlayerTriggerExit` は使わない。
+- 次の場合は「外」とする。
+  - `area` が未設定
+  - `area.enabled` が `false`
+  - ローカルプレイヤーが取得できない
+- `area` の GameObject のアクティブ状態は判定条件に含まない。
+- Non-Convex の MeshCollider は `Collider.ClosestPoint` の対象外のため使用できない。
 
-- **判定基準点**: `Networking.LocalPlayer.GetPosition()`（プレイヤーの足元）
-- **内外判定**: `Collider.ClosestPoint(playerPos)` と入力点との距離で判定（距離 0 ≒ 内部）
-- **初期状態**: `Start` 時点で即時判定し、エリア内ならスタート時から有効化済みになります
-- **位相分散**: 同フレームで複数インスタンスが揃って評価されないよう、初回判定のみランダムにずらします
+### タイミング
 
-## 制限・注意事項
+- `Start` で即時に判定し、結果を対象へ反映する。
+- 以後は `Update` で `pollInterval` 秒ごとに判定する。`pollInterval` が `0` 以下のときは毎フレーム判定する。
+- 最初のポーリング時刻は `Start` から `0` 〜 `pollInterval` 秒の乱数でずらす。
+- ポーリング時は、内外が前回から変化したときのみ対象へ反映する。
 
-- **Non-Convex な MeshCollider は使用不可**: Unity の `Collider.ClosestPoint` 仕様により、`Convex` チェック無しの MeshCollider では正しく判定できません。Box / Sphere / Capsule / Convex Mesh を使ってください。
-- **Area が未設定（null）／Collider コンポーネントを無効化（`enabled = false`）したとき**: 「エリア外」として扱い、ターゲットは（Invert オフなら）OFF になります。ただし **Collider が乗っている GameObject 自体を非アクティブにした場合はこの扱いになりません**。エリアを一時的に無効化したいときは Collider コンポーネント側の `enabled` を切ってください。
-- **同じ対象を他のスイッチでも制御する場合**: `MashiroGlobalOnOffSwitch` などと同じ GameObject を Targets に入れると、ローカル側で強制的に `SetActive` するため整合性が崩れます。**他のスイッチと対象を共有しない**運用にしてください。
-- **エリアコライダーは `Is Trigger` 推奨**: `ClosestPoint` 自体は Trigger でなくても動きますが、物理衝突を発生させないため Trigger を強く推奨します。
-- **ローカル限定**: 状態は同期されません。全員に同じ状態を見せたい用途には `MashiroGlobalOnOffSwitch` 等を使ってください。
+### 反映
 
-## パフォーマンス
+- `invert` が `false`: 内で `SetActive(true)`、外で `SetActive(false)`。
+- `invert` が `true`: 内で `SetActive(false)`、外で `SetActive(true)`。
+- `targets` の `null` 要素は無視する。
+- `targets` の要素数は `Start` 時点の値を使う。
 
-- デフォルト 10Hz ポーリングで `ClosestPoint` 1 回 + 距離比較のみ。多数並べても軽量です。
-- 反応速度を最優先したい場合のみ `Poll Interval = 0` で毎フレーム判定にしてください。
-- ステージ全域に大量に並べる場合は、`Poll Interval` を 0.2〜0.5 程度に伸ばすとさらに軽量化できます。
+### 同期
+
+- 同期モード: `[UdonBehaviourSyncMode(BehaviourSyncMode.NoVariableSync)]`
+- 同期変数なし。判定・反映はプレイヤーごとにローカルで行う。
+
+### 既知の干渉
+
+- 対象の `SetActive` を直接呼ぶため、同じ GameObject を他のコンポーネント（`MashiroGlobalOnOffSwitch` 等）でも操作すると、内外が変化した時点で互いの状態を上書きする。
+
+## Inspector
+
+### MashiroLocalAreaActivator
+
+| フィールド | 型 | 既定値 | 必須 | 内容 |
+| --- | --- | --- | --- | --- |
+| `area` | `Collider` | なし | ○ | エリア判定に使う Collider |
+| `targets` | `GameObject[]` | 空 | ○ | 内外に応じて有効・無効を切り替える GameObject |
+| `invert` | `bool` | `false` | — | `true` で内外を反転する（外で有効、内で無効） |
+| `pollInterval` | `float` | `0.1` | — | 判定間隔（秒）。`0` 以下で毎フレーム |
 
 ## API リファレンス
 
 ### MashiroLocalAreaActivator
 
-public 関数はありません。**配線は不要**で、Inspector の設定だけで動作します。
+public 関数はない。配線は不要。
+
+## ライセンス
+
+MIT License（`MashiroTheater-Utils` 同梱の `LICENSE.md` を参照）。
 
 ---
 

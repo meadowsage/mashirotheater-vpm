@@ -1,12 +1,12 @@
 # ましろ小劇場 ツール・ギミック汎用利用規約
 
 - 権利者: ましろ小劇場（Mashiro Small Theater）
-- 本書の対象: Mashiro Theater Stage Timeline Manager（本フォルダに含まれる一切のデータ）
+- 本書の対象: Mashiro Theater Stage Timeline Tools（旧称 Mashiro Theater Stage Timeline Manager。本フォルダに含まれる一切のデータ）
 - **規約の正本は同フォルダの [`VN3License_ja.pdf`](VN3License_ja.pdf) です**（VN3 ライセンス様式・2026-08-08 発行）。
   本ファイルは参照用の概要であり、本文と差異がある場合は PDF が優先されます。
 
 本規約は、本規約が同梱されて配布されるデータにのみ適用されます。頒布者が MIT License 等の
-別のライセンスを明示して配布するデータ（`com.mashirotheater.common` / `com.mashirotheater.utils` 等）には、
+別のライセンスを明示して配布するデータ（`com.mashirotheater.utils` 等）には、
 本規約ではなく当該ライセンスが適用されます。
 
 ## 許諾範囲の簡易一覧（参考）
