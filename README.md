@@ -11,8 +11,7 @@ VCC の **Settings → Packages → Add Repository** に次の URL を追加し�
 https://meadowsage.github.io/mashirotheater-vpm/index.json
 ```
 
-案内ページ: https://meadowsage.github.io/mashirotheater-vpm/
-リファレンス: https://meadowsage.github.io/mashirotheater-vpm/docs/
+使い方・マニュアル: https://mashirotheater.com/downloads/
 
 ## 収録パッケージ
 
@@ -47,7 +46,7 @@ MIT License。同梱しているフォント（SIL OFL 1.1）とアイコン（A
 | 場所 | 中身 |
 | --- | --- |
 | Release | 各バージョンの zip / unitypackage / VPM 用 json |
-| `gh-pages` ブランチ | GitHub Pages として公開するサイト（`index.json`・`docs/`・案内ページ） |
+| `gh-pages` ブランチ | GitHub Pages として公開する VPM リスティング（`index.json`） |
 | `main` ブランチ | この README とライセンス |
 
 このリポジトリにワークフローはありません。`gh-pages` への push で GitHub Pages が更新されます。
@@ -58,4 +57,4 @@ MIT License。同梱しているフォント（SIL OFL 1.1）とアイコン（A
 - ソースリポジトリ側の Secrets に `DIST_REPO_TOKEN`（このリポジトリへの
   Contents: Read and write 権限を持つ fine-grained PAT）
 
-リリース・リファレンス更新などの手順は、ソースリポジトリの `.packaging/README.md` を参照してください。
+リリースなどの手順は、ソースリポジトリの `.packaging/README.md` を参照してください。
